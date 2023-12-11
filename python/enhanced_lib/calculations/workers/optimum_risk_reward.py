@@ -104,6 +104,8 @@ def determine_optimum_reward(
     def passCriterion(x: EvalFuncType):
         if criterion != "quantity":
             return True
+        if isinstance(x, list):
+            return False
         found_index = x["max_index"]
         # found_index = find_index_by_condition(
         #     x["result"], lambda j: j["quantity"] == x["max"]
