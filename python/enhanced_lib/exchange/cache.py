@@ -120,7 +120,7 @@ class ExchangeCache:
 
         return [{**x, "pnl": compute_pnl(x)} for x in active_zones]
 
-    def get_next_tradable_zone(self, kind: Position):
+    def get_next_tradable_zone(self, kind: Position, full=False):
         zones = self.future_instance.config.get_trading_zones(kind)
         closed_order = (
             self.position.closed_long if kind == "long" else self.position.closed_short
@@ -137,6 +137,8 @@ class ExchangeCache:
             return zone["entry"] < closed_order.sell_price
 
         active_zones = [x for x in zones if closed_order and condition(x)]
+        if full:
+            active_zones = zones
 
         def compute_new_stop(zone: shared.TradingZoneDict):
             liquidation_zone = None
@@ -150,7 +152,7 @@ class ExchangeCache:
             else:
                 max_sell_size = self.maximum_sell_size
                 # interested in where the long zone would take profit
-                long_zones = self.get_next_tradable_zone("long")
+                long_zones = self.get_next_tradable_zone("long", full)
                 if long_zones:
                     liquidation_zone = long_zones[-1]["entry"]
             if liquidation_zone and max_sell_size:
@@ -169,9 +171,7 @@ class ExchangeCache:
     def config_params_for_future_trades(
         self, kind: Position, with_trades=False, no_of_cpu=6, gap=None, full=False
     ):
-        zones = self.get_next_tradable_zone(kind)
-        if full:
-            zones = self.future_instance.config.get_trading_zones(kind)
+        zones = self.get_next_tradable_zone(kind, full=full)
         config = self.future_instance.config
 
         def get_gap(x: shared.TradingZoneDict):
