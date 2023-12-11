@@ -166,12 +166,14 @@ class ExchangeCache:
         return [{**x, **y} for x in active_zones if (y := compute_new_stop(x))]
 
     def config_params_for_future_trades(
-        self, kind: Position, with_trades=False, no_of_cpu=6
+        self, kind: Position, with_trades=False, no_of_cpu=6,gap=None
     ):
         zones = self.get_next_tradable_zone(kind)
         config = self.future_instance.config
 
         def get_gap(x: shared.TradingZoneDict):
+            if gap:
+                return gap
             if x.get("size") < 0.15:
                 return 0.1
             return 1
@@ -250,7 +252,7 @@ class ProcessedParams:
             print("processing result for ", result["entry"])
             if result:
                 self.trades.append(result)
-        except Exception as exc:
+        except Exception:
             print(f"Callback: Task raised an exception: {exec}")
 
     def process(self, func, zones, non_blocking):
