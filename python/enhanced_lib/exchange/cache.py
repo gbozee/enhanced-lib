@@ -133,7 +133,6 @@ class ExchangeCache:
             return zone["entry"] < closed_order.sell_price
 
         active_zones = [x for x in zones if closed_order and condition(x)]
-
         def compute_new_stop(zone: shared.TradingZoneDict):
             liquidation_zone = None
             max_sell_size = self.future_instance.config.max_size
@@ -147,6 +146,7 @@ class ExchangeCache:
                 max_sell_size = self.maximum_sell_size
                 # interested in where the long zone would take profit
                 long_zones = self.get_zone_for_position("long")
+                print('active_zones', long_zones)
                 if long_zones:
                     liquidation_zone = long_zones[0]["entry"]
             if liquidation_zone and max_sell_size:
