@@ -1,2 +1,4 @@
-from .cache import ExchangeCache, Account as BaseAccount
+from .cache import ExchangeCache
+from .account import Account, BaseAccount
 from .types import ProfileDict
+from .database import Database
