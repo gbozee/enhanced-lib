@@ -90,6 +90,8 @@ class ExchangeCache:
     def maximum_sell_size(self):
         long_position = self.position.long
         short_position = self.position.short
+        if long_position.size == 0:
+            return self.future_instance.config.max_size
         return to_f(
             abs(long_position.size - short_position.size),
             self.future_instance.config.decimal_places,
@@ -102,6 +104,8 @@ class ExchangeCache:
         def condition(zone: shared.TradingZoneDict):
             if kind == "long":
                 return zone["entry"] > position.entry_price
+            if position.entry_price == 0:
+                return True
             return zone["entry"] < position.entry_price
 
         active_zones = [x for x in zones if condition(x) and position.size > 0]
@@ -125,10 +129,10 @@ class ExchangeCache:
 
         def condition(zone: shared.TradingZoneDict):
             if kind == "long":
-                if position:
+                if position and position.entry_price:
                     return zone["entry"] > position.entry_price
                 return zone["entry"] > closed_order.sell_price
-            if position:
+            if position and position.entry_price:
                 return zone["entry"] < position.entry_price
             return zone["entry"] < closed_order.sell_price
 
@@ -145,10 +149,9 @@ class ExchangeCache:
             else:
                 max_sell_size = self.maximum_sell_size
                 # interested in where the long zone would take profit
-                long_zones = self.get_zone_for_position("long")
-                print('active_zones', long_zones)
+                long_zones = self.get_next_tradable_zone("long")
                 if long_zones:
-                    liquidation_zone = long_zones[0]["entry"]
+                    liquidation_zone = long_zones[-1]["entry"]
             if liquidation_zone and max_sell_size:
                 return {
                     "stop": to_f(

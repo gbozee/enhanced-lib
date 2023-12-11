@@ -1,6 +1,6 @@
 import typing
 from ..shared import AppConfig, build_config, to_f
-from .utils import run_in_parallel,chunks_in_threads
+from .utils import run_in_parallel, chunks_in_threads
 
 
 class EvalFuncType(typing.TypedDict):
@@ -58,7 +58,11 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
     total = sum([x["quantity"] for x in trades])
     _max_quantity = max([x["quantity"] for x in trades]) if trades else 0
     _min_quantity = min([x["quantity"] for x in trades]) if trades else 0
-    max_index = [o['quantity'] for o in trades].index(_max_quantity)
+    max_index = (
+        [o["quantity"] for o in trades].index(_max_quantity) if _max_quantity else -1
+    )
+    if isinstance(max_index,list):
+        max_index = -1
     # for i, x in enumerate(trades):
     #     total += x["quantity"]
     #     _max_quantity = max(_max_quantity, x["quantity"])
@@ -90,7 +94,9 @@ def find_index_by_condition(
     return -1  # Return -1 if no matching item is found
 
 
-def determine_optimum_reward(app_config: AppConfig, no_of_cpu=4, gap=1,option='default'):
+def determine_optimum_reward(
+    app_config: AppConfig, no_of_cpu=4, gap=1, option="default"
+):
     criterion = app_config.strategy or "quantity"
     risk_rewards = [x for x in range(30, 199, gap)]
 
@@ -98,16 +104,15 @@ def determine_optimum_reward(app_config: AppConfig, no_of_cpu=4, gap=1,option='d
     def passCriterion(x: EvalFuncType):
         if criterion != "quantity":
             return True
+        if isinstance(x, list):
+            return False
         found_index = x["max_index"]
         # found_index = find_index_by_condition(
         #     x["result"], lambda j: j["quantity"] == x["max"]
         # )
         return found_index == 0
 
-    _options = {
-        'default': run_in_parallel,
-        'chunks': chunks_in_threads
-    }
+    _options = {"default": run_in_parallel, "chunks": chunks_in_threads}
     # func = [eval_func(x, app_config) for x in risk_rewards]
     func = _options[option](
         eval_func, [(x, app_config) for x in risk_rewards], no_of_cpu=no_of_cpu
