@@ -137,7 +137,6 @@ class ExchangeCache:
             return zone["entry"] < closed_order.sell_price
 
         active_zones = [x for x in zones if closed_order and condition(x)]
-        print("zones", active_zones)
 
         def compute_new_stop(zone: shared.TradingZoneDict):
             liquidation_zone = None

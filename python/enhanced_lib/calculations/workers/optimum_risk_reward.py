@@ -61,6 +61,8 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
     max_index = (
         [o["quantity"] for o in trades].index(_max_quantity) if _max_quantity else -1
     )
+    if isinstance(max_index,list):
+        max_index = -1
     # for i, x in enumerate(trades):
     #     total += x["quantity"]
     #     _max_quantity = max(_max_quantity, x["quantity"])
