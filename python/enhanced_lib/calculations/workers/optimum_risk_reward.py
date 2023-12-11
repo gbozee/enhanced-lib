@@ -163,7 +163,7 @@ def determine_optimum_reward(
     print("func", func)
     print("highest", highest)
     print("index", index)
-    raise Exception("No optimum reward found")
+    raise Exception("No optimum reward found for ",app_config.risk_per_trade)
 
 
 class TradeInstanceType(typing.TypedDict):
@@ -226,9 +226,18 @@ def determine_optimum_risk(
     # print("result", result)
     while True:
         current_risk = app_config.risk_per_trade + (gap * start_index)
-        result = size_resolver(
-            current_risk, app_config, no_of_cpu=no_of_cpu, with_trades=with_trades
-        )
+        try:
+            result = size_resolver(
+                current_risk, app_config, no_of_cpu=no_of_cpu, with_trades=with_trades
+            )
+        except Exception as e:
+            print("error", e)
+            result = {
+                'size': 0,
+                'value': current_risk,
+                'risk_reward': 0,
+                'trades':[]
+            }
         size = to_f(result["size"], app_config.decimal_places)
         if size <= max_size:
             print(f"size for risk {current_risk}", size)
