@@ -102,6 +102,8 @@ class ExchangeCache:
         def condition(zone: shared.TradingZoneDict):
             if kind == "long":
                 return zone["entry"] > position.entry_price
+            if position.entry_price == 0:
+                return True
             return zone["entry"] < position.entry_price
 
         active_zones = [x for x in zones if condition(x) and position.size > 0]
@@ -125,10 +127,10 @@ class ExchangeCache:
 
         def condition(zone: shared.TradingZoneDict):
             if kind == "long":
-                if position:
+                if position and position.entry_price:
                     return zone["entry"] > position.entry_price
                 return zone["entry"] > closed_order.sell_price
-            if position:
+            if position and position.entry_price:
                 return zone["entry"] < position.entry_price
             return zone["entry"] < closed_order.sell_price
 
