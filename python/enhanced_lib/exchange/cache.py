@@ -167,9 +167,11 @@ class ExchangeCache:
         return [{**x, **y} for x in active_zones if (y := compute_new_stop(x))]
 
     def config_params_for_future_trades(
-        self, kind: Position, with_trades=False, no_of_cpu=6, gap=None
+        self, kind: Position, with_trades=False, no_of_cpu=6, gap=None, full=False
     ):
         zones = self.get_next_tradable_zone(kind)
+        if full:
+            zones = self.future_instance.config.get_trading_zones(kind)
         config = self.future_instance.config
 
         def get_gap(x: shared.TradingZoneDict):
