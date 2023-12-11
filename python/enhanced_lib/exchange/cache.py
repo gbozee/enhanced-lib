@@ -137,6 +137,7 @@ class ExchangeCache:
             return zone["entry"] < closed_order.sell_price
 
         active_zones = [x for x in zones if closed_order and condition(x)]
+
         def compute_new_stop(zone: shared.TradingZoneDict):
             liquidation_zone = None
             max_sell_size = self.future_instance.config.max_size
@@ -166,7 +167,7 @@ class ExchangeCache:
         return [{**x, **y} for x in active_zones if (y := compute_new_stop(x))]
 
     def config_params_for_future_trades(
-        self, kind: Position, with_trades=False, no_of_cpu=6,gap=None
+        self, kind: Position, with_trades=False, no_of_cpu=6, gap=None
     ):
         zones = self.get_next_tradable_zone(kind)
         config = self.future_instance.config
