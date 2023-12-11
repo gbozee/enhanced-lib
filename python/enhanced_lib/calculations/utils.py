@@ -128,12 +128,15 @@ def determine_pnl(
     return difference * quantity
 
 
-def fibonacci_analysis(support: float, resistance: float, kind="long", places="%.1f"):
-    swing_high = resistance if kind == "long" else support
-    swing_low = support if kind == "long" else resistance
+def fibonacci_analysis(support: float, resistance: float, kind="long",trend='long', places="%.1f"):
+    swing_high = resistance if trend == "long" else support
+    swing_low = support if trend == "long" else resistance
     ranges = [0, 0.236, 0.382, 0.5, 0.618, 0.789, 1]
     fib_calc = lambda p, h, l: (p * (h - l)) + l
     fib_values = [fib_calc(x, swing_high, swing_low) for x in ranges]
+    if kind == 'short':
+        return list(reversed(fib_values)) if trend == 'long' else fib_values
+    return list(reversed(fib_values)) if trend == 'short' else fib_values
     return [to_f(r, places) for r in fib_values]
 
 
