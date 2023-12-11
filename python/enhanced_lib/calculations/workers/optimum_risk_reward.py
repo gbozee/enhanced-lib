@@ -1,6 +1,6 @@
 import typing
 from ..shared import AppConfig, build_config, to_f
-from .utils import run_in_parallel
+from .utils import run_in_parallel,chunks_in_threads
 
 
 class EvalFuncType(typing.TypedDict):
@@ -10,6 +10,7 @@ class EvalFuncType(typing.TypedDict):
     max: float
     min: float
     entry: float
+    max_index: int
 
 
 def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
@@ -38,16 +39,43 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
     # print("trades", trades)
     _max = max([x["entry"] for x in trades]) if trades else 0
     _min = min([x["entry"] for x in trades]) if trades else 0
+    # total = sum([x["quantity"] for x in trades])
+    # result = {
+    #     "result": trades,
+    #     "value": y,
+    #     "total": total,
+    #     "max": max([x["quantity"] for x in trades]) if trades else 0,
+    #     "min": min([x["quantity"] for x in trades]) if trades else 0,
+    #     "entry": _max if config.kind == "long" else _min,
+    # }
+    # found_trades = [x for x in trades if x["quantity"] == result["max"]]
+    _max_quantity = 0
+    _min_quantity = 0
+    if trades:
+        _min_quantity = trades[0]["quantity"]
+    total = 0
+    max_index = -1
     total = sum([x["quantity"] for x in trades])
+    _max_quantity = max([x["quantity"] for x in trades]) if trades else 0
+    _min_quantity = min([x["quantity"] for x in trades]) if trades else 0
+    max_index = [o['quantity'] for o in trades].index(_max_quantity)
+    # for i, x in enumerate(trades):
+    #     total += x["quantity"]
+    #     _max_quantity = max(_max_quantity, x["quantity"])
+    #     _min_quantity = min(_min_quantity, x["quantity"])
+    #     if _max_quantity == x["quantity"]:
+    #         max_index = i
     result = {
         "result": trades,
         "value": y,
         "total": total,
-        "max": max([x["quantity"] for x in trades]) if trades else 0,
-        "min": min([x["quantity"] for x in trades]) if trades else 0,
+        "max": _max_quantity,
+        "min": _min_quantity,
         "entry": _max if config.kind == "long" else _min,
+        "max_index": max_index,
     }
-    found_trades = [x for x in trades if x["quantity"] == result["max"]]
+    found_trades = max_index > -1
+
     if found_trades:
         return result
     return []
@@ -62,34 +90,51 @@ def find_index_by_condition(
     return -1  # Return -1 if no matching item is found
 
 
-
-
-
-def determine_optimum_reward(app_config: AppConfig, no_of_cpu=4, gap=1):
+def determine_optimum_reward(app_config: AppConfig, no_of_cpu=4, gap=1,option='default'):
     criterion = app_config.strategy or "quantity"
     risk_rewards = [x for x in range(30, 199, gap)]
 
     # run each risk reward through the eval function in parallel using multiprocessing
     def passCriterion(x: EvalFuncType):
-        found_index = find_index_by_condition(
-            x["result"], lambda j: j["quantity"] == x["max"]
-        )
-        return found_index == 0 if criterion == "quantity" else True
+        if criterion != "quantity":
+            return True
+        found_index = x["max_index"]
+        # found_index = find_index_by_condition(
+        #     x["result"], lambda j: j["quantity"] == x["max"]
+        # )
+        return found_index == 0
 
+    _options = {
+        'default': run_in_parallel,
+        'chunks': chunks_in_threads
+    }
     # func = [eval_func(x, app_config) for x in risk_rewards]
-    func = run_in_parallel(
+    func = _options[option](
         eval_func, [(x, app_config) for x in risk_rewards], no_of_cpu=no_of_cpu
     )
-    func = [x for x in func if x and passCriterion(x)]
     highest = 0
-    if func:
-        if criterion == "quantity":
-            highest = max([x["max"] for x in func])
-        else:
-            if app_config.kind == "long":
-                highest = max([x["entry"] for x in func])
+    new_func = []
+    for j in func:
+        if passCriterion(j):
+            new_func.append(j)
+            if criterion == "quantity":
+                highest = max(highest, j["max"])
             else:
-                highest = min([x["entry"] for x in func])
+                if app_config.kind == "long":
+                    highest = max(highest, j["entry"])
+                else:
+                    highest = min(highest, j["entry"])
+    func = new_func
+    # func = [x for x in func if x and passCriterion(x)]
+    # highest = 0
+    # if func:
+    #     if criterion == "quantity":
+    #         highest = max([x["max"] for x in func])
+    #     else:
+    #         if app_config.kind == "long":
+    #             highest = max([x["entry"] for x in func])
+    #         else:
+    #             highest = min([x["entry"] for x in func])
     key = "max" if criterion == "quantity" else "entry"
     if app_config.as_array:
         working_list = set([x[key] for x in func])
