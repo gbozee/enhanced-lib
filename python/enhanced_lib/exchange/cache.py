@@ -169,7 +169,13 @@ class ExchangeCache:
         return [{**x, **y} for x in active_zones if (y := compute_new_stop(x))]
 
     def config_params_for_future_trades(
-        self, kind: Position, with_trades=False, no_of_cpu=6, gap=None, full=False
+        self,
+        kind: Position,
+        with_trades=False,
+        no_of_cpu=6,
+        gap=None,
+        full=False,
+        ignore=False,
     ):
         zones = self.get_next_tradable_zone(kind, full=full)
         config = self.future_instance.config
@@ -197,7 +203,9 @@ class ExchangeCache:
                 "trades": y.get("trades", []),
             }
 
-        result = run_in_threads(func, [(x,) for x in zones], num_threads=no_of_cpu)
+        result = run_in_threads(
+            func, [(x,) for x in zones], num_threads=no_of_cpu, ignore=ignore
+        )
 
         return result
 

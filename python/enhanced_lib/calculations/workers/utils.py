@@ -7,7 +7,10 @@ def run_in_threads(
     func: typing.Callable[[int, typing.Any], typing.Any],
     args: typing.List[typing.Tuple[int, typing.Any]],
     num_threads=2,
+    ignore=False,
 ):
+    if ignore:
+        return [func(*x) for x in args]
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=num_threads
     ) as thread_executor:
@@ -46,10 +49,12 @@ def chunks_in_threads(
 ):
     # Split the args into chunks
     chunks = [args[i : i + num_threads] for i in range(0, len(args), num_threads)]
-    
+
     def use_multiprocess(_args):
         return run_in_parallel(func, _args, no_of_cpu=no_of_cpu)
-    
+
     # Run each chunk in a separate thread
-    result = run_in_threads(use_multiprocess, [(x,) for x in chunks], num_threads=num_threads)
+    result = run_in_threads(
+        use_multiprocess, [(x,) for x in chunks], num_threads=num_threads
+    )
     return [x for y in result for x in y]

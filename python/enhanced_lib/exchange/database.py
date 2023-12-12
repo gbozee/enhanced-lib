@@ -57,7 +57,13 @@ class Database:
         return symbol_position_information.get(AccountKeys.FUTURE_TRADES) or {}
 
     def generate_future_trades(
-        self, exchange: ExchangeCache, kind=None, gap=None, full=None,no_of_cpu=1
+        self,
+        exchange: ExchangeCache,
+        kind=None,
+        gap=None,
+        full=None,
+        no_of_cpu=1,
+        ignore=False,
     ):
         self.started_generation = True
         existing = self.get_future_trades(exchange.account.owner, exchange.symbol)
@@ -65,11 +71,11 @@ class Database:
         short_trades = existing.get("short") or []
         if kind == "long" or not kind:
             long_trades = exchange.config_params_for_future_trades(
-                "long", True, gap=gap, full=full,no_of_cpu=no_of_cpu
+                "long", True, gap=gap, full=full, no_of_cpu=no_of_cpu, ignore=ignore
             )
         if kind == "short" or not kind:
             short_trades = exchange.config_params_for_future_trades(
-                "short", True, gap=gap, full=full,no_of_cpu=no_of_cpu
+                "short", True, gap=gap, full=full, no_of_cpu=no_of_cpu, ignore=ignore
             )
         self.save_future_trades(
             exchange.account.owner,
