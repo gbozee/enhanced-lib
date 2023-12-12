@@ -4,10 +4,24 @@ from typing import List, Literal, Optional, TypedDict
 from ..calculations.utils import determine_pnl, get_decimal_places, to_f
 
 
+def sample_init(self, **kwargs):
+    for k, v in kwargs.items():
+        setattr(self, k, v)
+
+
 def inject_fields(parent):
     def doit(cls):
         if hasattr(cls, "__annotations__"):
             cls.__annotations__ = parent.__annotations__ | cls.__annotations__
+        else:
+            attrs = {x: None for x in parent.__annotations__.keys()}
+            additional = {
+                attr: getattr(cls, attr)
+                for attr in dir(cls)
+                if not attr.startswith("__")
+            }
+            attrs["__init__"] = sample_init
+            return type(cls.__name__, (object,), {**attrs, **additional})
         return cls
 
     return doit
