@@ -57,7 +57,7 @@ class Database:
         return symbol_position_information.get(AccountKeys.FUTURE_TRADES) or {}
 
     def generate_future_trades(
-        self, exchange: ExchangeCache, kind=None, gap=None, full=None,no_of_cpu=1
+        self, exchange: ExchangeCache, kind=None, gap=None, full=None, no_of_cpu=1
     ):
         self.started_generation = True
         existing = self.get_future_trades(exchange.account.owner, exchange.symbol)
@@ -65,11 +65,11 @@ class Database:
         short_trades = existing.get("short") or []
         if kind == "long" or not kind:
             long_trades = exchange.config_params_for_future_trades(
-                "long", True, gap=gap, full=full,no_of_cpu=no_of_cpu
+                "long", True, gap=gap, full=full, no_of_cpu=no_of_cpu
             )
         if kind == "short" or not kind:
             short_trades = exchange.config_params_for_future_trades(
-                "short", True, gap=gap, full=full,no_of_cpu=no_of_cpu
+                "short", True, gap=gap, full=full, no_of_cpu=no_of_cpu
             )
         self.save_future_trades(
             exchange.account.owner,
@@ -85,6 +85,23 @@ class Database:
         self, owner: str, symbol: str, payload: TradeZoneDict, places="%.1f"
     ):
         future_trades = self.get_future_trades(owner, symbol)
+        if not future_trades:
+            return None
+        kind_entry = future_trades.get(payload["kind"]) or []
+        entity = [
+            x
+            for x in kind_entry
+            if to_f(x["entry"], places) == to_f(payload["entry"], places)
+        ]
+        if entity:
+            return entity[0]
+        return None
+
+    async def get_trades_for_entry_async(
+        self, owner: str, symbol: str, payload: TradeZoneDict, places="%.1f"
+    ):
+        exchange = await self.get_initialized_exchange(owner, symbol)
+        future_trades = await exchange.account.get_trades(symbol)
         if not future_trades:
             return None
         kind_entry = future_trades.get(payload["kind"]) or []
