@@ -221,6 +221,7 @@ def determine_optimum_risk(
     gap: float = 1,
     no_of_cpu=4,
     with_trades=False,
+    ignore=False,
 ) -> typing.Optional[RiskType]:
     start_index = 0
     highest = None
@@ -231,16 +232,15 @@ def determine_optimum_risk(
         current_risk = app_config.risk_per_trade + (gap * start_index)
         try:
             result = size_resolver(
-                current_risk, app_config, no_of_cpu=no_of_cpu, with_trades=with_trades
+                current_risk,
+                app_config,
+                no_of_cpu=no_of_cpu,
+                with_trades=with_trades,
+                ignore=ignore,
             )
         except Exception as e:
             print("error", e)
-            result = {
-                'size': 0,
-                'value': current_risk,
-                'risk_reward': 0,
-                'trades':[]
-            }
+            result = {"size": 0, "value": current_risk, "risk_reward": 0, "trades": []}
         size = to_f(result["size"], app_config.decimal_places)
         if size <= max_size:
             print(f"size for risk {current_risk}", size)
