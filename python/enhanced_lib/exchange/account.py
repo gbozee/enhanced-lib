@@ -147,6 +147,27 @@ class Account(BaseAccount):
             }
         return await self.client_helper(action, kwargs)
 
+    async def save_trades(self, symbol: str, trades: dict):
+        return await self.client_helper(
+            "trade_actions",
+            {
+                "owner": self.owner,
+                "symbol": symbol,
+                "action": "save",
+                "trades": trades,
+            },
+        )
+        
+    async def get_trades(self, symbol: str):
+        return await self.client_helper(
+            "trade_actions",
+            {
+                "owner": self.owner,
+                "symbol": symbol,
+                "action": "get",
+            },
+        )
+
     async def place_orders(
         self, symbol: str, kind: Literal["long", "short"], orders: list
     ):

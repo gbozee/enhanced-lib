@@ -11,6 +11,13 @@ async def loop_helper(callback):
     return await future
 
 
+class TradeActionParamType(TypedDict):
+    symbol: str
+    action: Literal["get", "save"]
+    owner: str
+    trades: Dict[str, Any]
+
+
 class CandleStickParamType(TypedDict):
     symbol: str
     interval: Literal[
@@ -801,6 +808,19 @@ class TradeClient:
                 "interval": params["interval"],
                 "count": params["count"],
                 "raw": params.get("raw"),
+            },
+        )
+        return result["data"]
+
+    def trade_actions(self, params: TradeActionParamType):
+        result = self.api_call(
+            "api/generated-trades/actions",
+            "POST",
+            {
+                "symbol": params["symbol"],
+                "action": params["action"],
+                "owner": params["owner"],
+                "trades": params.get("trades"),
             },
         )
         return result["data"]
