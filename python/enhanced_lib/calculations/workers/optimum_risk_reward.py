@@ -191,12 +191,12 @@ class RiskType(typing.TypedDict):
 
 
 def size_resolver(
-    trade_no: float, app_config: AppConfig, no_of_cpu=4, with_trades=False
+    trade_no: float, app_config: AppConfig, no_of_cpu=4, with_trades=False, ignore=False
 ) -> RiskType:
     app_config.risk_per_trade = trade_no
     app_config.raw = True
 
-    result = determine_optimum_reward(app_config, no_of_cpu=no_of_cpu)
+    result = determine_optimum_reward(app_config, no_of_cpu=no_of_cpu, ignore=ignore)
     if result:
         r = {
             "value": trade_no,
@@ -212,6 +212,7 @@ def size_resolver(
     #     "risk_reward": 1,
     #     "size": 0,
     # }
+
 
 
 def determine_optimum_risk(
