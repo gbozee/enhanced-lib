@@ -221,6 +221,7 @@ class TradeBuilder:
 
 @dataclass
 class Config:
+    gap: Optional[float] = 1
     fee: Optional[float] = 0.06
     risk_per_trade: Optional[float] = 4
     risk_reward: Optional[int] = 4
