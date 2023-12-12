@@ -6,7 +6,8 @@ from ..calculations.utils import determine_pnl, get_decimal_places, to_f
 
 def inject_fields(parent):
     def doit(cls):
-        cls.__annotations__ = parent.__annotations__ | cls.__annotations__
+        if hasattr(cls, "__annotations__"):
+            cls.__annotations__ = parent.__annotations__ | cls.__annotations__
         return cls
 
     return doit
