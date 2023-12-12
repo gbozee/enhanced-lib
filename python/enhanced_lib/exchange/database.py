@@ -103,6 +103,23 @@ class Database:
             return entity[0]
         return None
 
+    async def get_trades_for_entry_async(
+        self, owner: str, symbol: str, payload: TradeZoneDict, places="%.1f"
+    ):
+        exchange = await self.get_initialized_exchange(owner, symbol)
+        future_trades = await exchange.account.get_trades(symbol)
+        if not future_trades:
+            return None
+        kind_entry = future_trades.get(payload["kind"]) or []
+        entity = [
+            x
+            for x in kind_entry
+            if to_f(x["entry"], places) == to_f(payload["entry"], places)
+        ]
+        if entity:
+            return entity[0]
+        return None
+
     def get_trade_zones(self, owner: str, symbol: str, places="%.1f"):
         future_trades = self.get_future_trades(owner, symbol)
         if not future_trades:
