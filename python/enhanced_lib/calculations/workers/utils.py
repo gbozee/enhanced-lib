@@ -2,6 +2,9 @@ import concurrent.futures
 import typing
 import multiprocessing
 
+def generator(func, args):
+    for arg in args:
+        yield func, arg
 
 def run_in_threads(
     func: typing.Callable[[int, typing.Any], typing.Any],

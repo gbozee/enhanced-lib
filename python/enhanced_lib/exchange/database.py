@@ -2,7 +2,7 @@ import logging
 import os
 from dataclasses import dataclass
 from typing import Literal, TypedDict
-
+import asyncio
 
 from ..calculations.utils import to_f
 from .cache import ExchangeCache
@@ -60,7 +60,6 @@ class Database:
         self,
         exchange: ExchangeCache,
         kind=None,
-        gap=None,
         full=None,
         no_of_cpu=1,
         ignore=False,
@@ -69,6 +68,7 @@ class Database:
         existing = self.get_future_trades(exchange.account.owner, exchange.symbol)
         long_trades = existing.get("long") or []
         short_trades = existing.get("short") or []
+        gap = exchange.config.gap or 1
         if kind == "long" or not kind:
             long_trades = exchange.config_params_for_future_trades(
                 "long", True, gap=gap, full=full, no_of_cpu=no_of_cpu, ignore=ignore
@@ -152,3 +152,26 @@ class Database:
             AccountKeys.CONFIG: {symbol.upper(): config},
         }
         return ExchangeCache(account, symbol)
+
+    async def generate_and_save_future_trades(
+        self, owner: str, symbol: str, config_owner=None, no_of_cpu=4, ignore=True
+    ):
+        exchange: ExchangeCache = await self.get_initialized_exchange(
+            owner,
+            symbol,
+            owner_config=config_owner,
+        )
+        # with concurrent.futures.ThreadPoolExecutor() as executor:
+        #     loop.run_in_executor(executor,self.generate_future_trades,,
+        self.generate_future_trades(
+            exchange,
+            kind=None,
+            full=True,
+            no_of_cpu=no_of_cpu,
+            ignore=ignore,
+        )
+        print("Generated trades")
+        print("result", self.get_trade_zones(owner, symbol))
+        await exchange.account.save_trades(
+            symbol, self.get_future_trades(owner, symbol)
+        )

@@ -148,6 +148,7 @@ class Account(BaseAccount):
         return await self.client_helper(action, kwargs)
 
     async def save_trades(self, symbol: str, trades: dict):
+        print('saving trades')
         return await self.client_helper(
             "trade_actions",
             {
