@@ -61,7 +61,7 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
     max_index = (
         [o["quantity"] for o in trades].index(_max_quantity) if _max_quantity else -1
     )
-    if isinstance(max_index,list):
+    if isinstance(max_index, list):
         max_index = -1
     # for i, x in enumerate(trades):
     #     total += x["quantity"]
@@ -95,7 +95,7 @@ def find_index_by_condition(
 
 
 def determine_optimum_reward(
-    app_config: AppConfig, no_of_cpu=4, gap=1, option="default"
+    app_config: AppConfig, no_of_cpu=4, gap=1, option="default", ignore=False
 ):
     criterion = app_config.strategy or "quantity"
     risk_rewards = [x for x in range(30, 199, gap)]
@@ -113,10 +113,12 @@ def determine_optimum_reward(
         return found_index == 0
 
     _options = {"default": run_in_parallel, "chunks": chunks_in_threads}
-    # func = [eval_func(x, app_config) for x in risk_rewards]
-    func = _options[option](
-        eval_func, [(x, app_config) for x in risk_rewards], no_of_cpu=no_of_cpu
-    )
+    if ignore:
+        func = [eval_func(x, app_config) for x in risk_rewards]
+    else:
+        func = _options[option](
+            eval_func, [(x, app_config) for x in risk_rewards], no_of_cpu=no_of_cpu
+        )
     highest = 0
     new_func = []
     for j in func:
@@ -163,7 +165,7 @@ def determine_optimum_reward(
     print("func", func)
     print("highest", highest)
     print("index", index)
-    raise Exception("No optimum reward found for ",app_config.risk_per_trade)
+    raise Exception("No optimum reward found for ", app_config.risk_per_trade)
 
 
 class TradeInstanceType(typing.TypedDict):
@@ -189,12 +191,12 @@ class RiskType(typing.TypedDict):
 
 
 def size_resolver(
-    trade_no: float, app_config: AppConfig, no_of_cpu=4, with_trades=False
+    trade_no: float, app_config: AppConfig, no_of_cpu=4, with_trades=False, ignore=False
 ) -> RiskType:
     app_config.risk_per_trade = trade_no
     app_config.raw = True
 
-    result = determine_optimum_reward(app_config, no_of_cpu=no_of_cpu)
+    result = determine_optimum_reward(app_config, no_of_cpu=no_of_cpu, ignore=ignore)
     if result:
         r = {
             "value": trade_no,
@@ -218,6 +220,7 @@ def determine_optimum_risk(
     gap: float = 1,
     no_of_cpu=4,
     with_trades=False,
+    ignore=False,
 ) -> typing.Optional[RiskType]:
     start_index = 0
     highest = None
@@ -228,16 +231,15 @@ def determine_optimum_risk(
         current_risk = app_config.risk_per_trade + (gap * start_index)
         try:
             result = size_resolver(
-                current_risk, app_config, no_of_cpu=no_of_cpu, with_trades=with_trades
+                current_risk,
+                app_config,
+                no_of_cpu=no_of_cpu,
+                with_trades=with_trades,
+                ignore=ignore,
             )
         except Exception as e:
             print("error", e)
-            result = {
-                'size': 0,
-                'value': current_risk,
-                'risk_reward': 0,
-                'trades':[]
-            }
+            result = {"size": 0, "value": current_risk, "risk_reward": 0, "trades": []}
         size = to_f(result["size"], app_config.decimal_places)
         if size <= max_size:
             print(f"size for risk {current_risk}", size)

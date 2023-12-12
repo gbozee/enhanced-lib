@@ -195,6 +195,7 @@ class ExchangeCache:
                 gap=get_gap(o),
                 with_trades=with_trades,
                 no_of_cpu=no_of_cpu,
+                ignore=ignore,
             )
             return {
                 **o,

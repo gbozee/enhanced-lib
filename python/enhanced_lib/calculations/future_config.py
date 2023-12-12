@@ -315,6 +315,7 @@ class Config:
         no_of_cpu=4,
         max_size=None,
         with_trades=False,
+        ignore=False,
     ):
         size = max_size or self.max_size
         self.kind = kind
@@ -322,7 +323,12 @@ class Config:
         app_config.entry = zone["entry"]
         app_config.stop = zone["stop"]
         return workers.determine_optimum_risk(
-            app_config, size, gap=gap, no_of_cpu=no_of_cpu,with_trades=with_trades
+            app_config,
+            size,
+            gap=gap,
+            no_of_cpu=no_of_cpu,
+            with_trades=with_trades,
+            ignore=ignore,
         )
 
     def get_trading_zones(self, kind: Literal["long", "short"]):
