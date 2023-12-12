@@ -280,7 +280,11 @@ class Position:
         )
         self.closed_long = None
         self.closed_short = None
-        if self.closed_orders:
+        if (
+            self.closed_orders
+            and self.closed_orders["long"]
+            and self.closed_orders["short"]
+        ):
             self.closed_long: ClosedOrder = ClosedOrder(**self.closed_orders["long"])
             self.closed_short: ClosedOrder = ClosedOrder(**self.closed_orders["short"])
 
