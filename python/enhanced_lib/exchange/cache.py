@@ -9,7 +9,7 @@ from ..calculations.future_config import (
     determine_pnl,
 )
 from .account import Account
-from .types import ExchangeInfo, OrderControl, Position, PositionKlass
+from .types import ExchangeInfo, OrderControl, Position, PositionKlass, PositionKind
 
 
 @dataclass
@@ -86,6 +86,14 @@ class ExchangeCache:
             self.exchange_info["position"], self.exchange_info["closed_orders"]
         )
 
+    def expected_pnl(self, kind: PositionKind):
+        reverse = "short" if kind == "long" else "long"
+        tp = self.open_orders.get_tp_orders(kind,True)
+        sl = self.open_orders.get_sl_orders(reverse,True)
+        if tp and sl:
+            return tp["pnl"] + sl["pnl"]
+        return 0
+
     @property
     def maximum_sell_size(self):
         long_position = self.position.long
@@ -97,7 +105,7 @@ class ExchangeCache:
             self.future_instance.config.decimal_places,
         )
 
-    def get_zone_for_position(self, kind: Position):
+    def get_zone_for_position(self, kind: PositionKind):
         zones = self.future_instance.config.get_trading_zones(kind)
         position: PositionKlass = getattr(self.position, kind)
 
