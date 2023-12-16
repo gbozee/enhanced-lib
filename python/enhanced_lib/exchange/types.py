@@ -30,6 +30,24 @@ def inject_fields(parent):
 PositionKind = Literal["long", "short"]
 
 
+class TradeDict(TypedDict):
+    entry: float
+    risk: float
+    quantity: float
+    sell_price: float
+    incurred_sell: float
+    stop: float
+    pnl: float
+    fee: float
+    net: float
+    incurred: float
+    stop_percent: float
+    rr: int
+    avg_entry: float
+    avg_size: float
+    start_entry: float
+
+
 class ProfileDict(TypedDict):
     focus: int
     zone_risk: int
