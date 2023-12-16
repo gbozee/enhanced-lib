@@ -173,6 +173,12 @@ class ExchangeInfo(TypedDict):
 
 
 @dataclass
+@inject_fields(TradeDict)
+class Trade:
+    pass
+
+
+@dataclass
 @inject_fields(OrderDict)
 class Order:
     @property
