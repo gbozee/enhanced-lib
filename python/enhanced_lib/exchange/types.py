@@ -234,6 +234,10 @@ class OrderStats:
             "avg": to_f(avg_entry, f"%.{places}f"),
             "last": last_order,
             "fees": to_f(fees, f"%.{places}f"),
+            "loss": to_f(
+                determine_pnl(avg_entry, last_order, size, kind=position.kind),
+                f"%.{places}f",
+            ),
         }
 
     def close_orders(
