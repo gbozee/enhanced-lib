@@ -1,12 +1,13 @@
 import logging
 import os
 from dataclasses import dataclass
-from typing import Literal, TypedDict
+from typing import Literal, TypedDict, List
 
 
 from ..calculations.utils import to_f
 from .cache import ExchangeCache
 from .account import Account, AccountKeys
+from .types import Trade, TradeEntryDict
 
 # https://docs.python.org/3/library/logging.html#logging-levels
 logging.basicConfig(
@@ -147,7 +148,7 @@ class Database:
         return {"long": long_entry, "short": short_entry}
 
     async def get_initialized_exchange(
-        self, owner: str, symbol: str, owner_config=None, refresh=False
+        self, owner: str, symbol: str, owner_config=None, refresh=False, test=False
     ):
         existing_position = self.get_position_information(owner, symbol)
         config = None

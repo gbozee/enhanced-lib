@@ -72,3 +72,6 @@ docs/_build/
 .python-version
 venv/
 startup.sh
+*.prof 
+demo 
+venv*
