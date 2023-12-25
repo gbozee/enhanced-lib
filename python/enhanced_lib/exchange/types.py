@@ -371,7 +371,7 @@ class OrderStats:
             "loss": to_f(
                 determine_pnl(avg_entry, last_order, size, kind=position.kind),
                 f"%.{places}f",
-            ),
+            ) if last_order else 0,
         }
 
     def close_orders(
