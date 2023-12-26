@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import List, Literal, Optional, TypedDict
 
 from ..calculations.utils import determine_pnl, get_decimal_places, to_f
+from ..calculations.hedge import determine_liquidation
 
 
 def inject_fields(parent):
@@ -13,6 +14,41 @@ def inject_fields(parent):
 
 
 PositionKind = Literal["long", "short"]
+
+
+class TradeDict(TypedDict):
+    entry: float
+    risk: float
+    quantity: float
+    sell_price: float
+    incurred_sell: float
+    stop: float
+    pnl: float
+    fee: float
+    net: float
+    incurred: float
+    stop_percent: float
+    rr: int
+    avg_entry: float
+    avg_size: float
+    start_entry: float
+
+    # # invalid
+    # incurred_sell: float
+    # stop_percent: float
+    # rr: int
+    # start_entry: float
+    # take_profit: float
+    # risk_sell: float
+
+
+class TradeEntryDict(TypedDict):
+    stop: float
+    entry: float
+    size: float
+    risk_reward: float
+    risk_per_trade: float
+    trades: List[TradeDict]
 
 
 class ProfileDict(TypedDict):
@@ -140,6 +176,71 @@ class ExchangeInfo(TypedDict):
 
 
 @dataclass
+@inject_fields(TradeDict)
+class Trade:
+    pass
+
+
+@dataclass
+@inject_fields(TradeEntryDict)
+class TradeEntry:
+    @property
+    def trade_instances(self):
+        def transform(u):
+            return {k: u.get(k) for k in TradeDict.__annotations__.keys()}
+
+        return [Trade(**transform(x)) for x in self.trades]
+
+    @property
+    def kind(self) -> PositionKind:
+        single_trade = self.trade_instances[0]
+        if single_trade.entry > single_trade.sell_price:
+            return "short"
+        return "long"
+
+    def split_at(self, entry: float):
+        orders_above = [x for x in self.trade_instances if x.entry > entry]
+        orders_below = [x for x in self.trade_instances if x.entry < entry]
+        if self.kind == "long":
+            market_size = sum(x.quantity for x in orders_above)
+            list_order_entry = min(orders_above, key=lambda x: x.entry)
+            remaining = orders_below
+        else:
+            market_size = sum(x.quantity for x in orders_below)
+            list_order_entry = max(orders_below, key=lambda x: x.entry)
+            remaining = orders_above
+
+        return market_size, list_order_entry, remaining
+
+    def new_entry_at(self, entry: float):
+        market_size, list_order_entry, remaining = self.split_at(entry)
+        kwargs = {
+            k: getattr(list_order_entry, k) for k in TradeDict.__annotations__.keys()
+        }
+        kwargs["quantity"] = market_size
+        return remaining + [Trade(**kwargs)]
+
+    def pnl_at_sell(self, entry: float):
+        market_size, list_order_entry, remaining = self.split_at(entry)
+        sell_price = list_order_entry.sell_price
+        return determine_pnl(entry, sell_price, market_size, kind=self.kind)
+
+    def last_placed_trade(self, current_size: float):
+        result = [
+            i for i, x in enumerate(self.trade_instances) if x.avg_size > current_size
+        ]
+        if result:
+            bb = result[-1]
+            return self.trade_instances[bb]
+
+    def avg_entry(self, entry: float):
+        trades = self.new_entry_at(entry)
+        return sum(x.entry * x.quantity for x in trades) / sum(
+            x.quantity for x in trades
+        )
+
+
+@dataclass
 @inject_fields(OrderDict)
 class Order:
     @property
@@ -209,8 +310,31 @@ class OrderStats:
     maker: float
     taker: float
 
+    def determine_liquidation(
+        self,
+        position: PositionDict,
+        balance: float,
+    ):
+        empty_position = {
+            "entry": 0,
+            "size": 0,
+        }
+        _position = {
+            "entry": position["entryPrice"],
+            "size": abs(position["positionAmt"]),
+        }
+        long_position = _position if position["kind"] == "long" else empty_position
+        short_position = _position if position["kind"] == "short" else empty_position
+        result = determine_liquidation(
+            balance=balance,
+            long_position=long_position,
+            short_position=short_position,
+            symbol=position["symbol"],
+        )
+        return result["liquidation"]
+
     def open_orders(
-        self, orders: List[Order], position: Optional[PositionKlass]
+        self, orders: List[Order], position: Optional[PositionKlass], balance=0
     ) -> OpenOrderStat:
         def get_key():
             if position:
@@ -225,19 +349,29 @@ class OrderStats:
             size += position.size
             total_notional_value += position.entry_price * position.size
 
-        avg_entry = total_notional_value / size
+        avg_entry = total_notional_value / (size or 1)
         last_order = orders[-1].entry_price if orders else None
         fees = sum((x.quantity * x.entry_price) * self.maker for x in orders)
+        liquidation = self.determine_liquidation(
+            {
+                "kind": position.kind,
+                "entryPrice": avg_entry,
+                "positionAmt": size,
+                "symbol": position.symbol,
+            },
+            balance,
+        )
         return {
             "size": to_f(size, f"%.{decimal_places}f"),
             "count": len(orders),
             "avg": to_f(avg_entry, f"%.{places}f"),
             "last": last_order,
             "fees": to_f(fees, f"%.{places}f"),
+            "liquidation": to_f(liquidation, f"%.{places}f"),
             "loss": to_f(
                 determine_pnl(avg_entry, last_order, size, kind=position.kind),
                 f"%.{places}f",
-            ),
+            ) if last_order else 0,
         }
 
     def close_orders(
@@ -315,6 +449,7 @@ class OrderControl:
         self,
         kind: PositionKind,
         stats=False,
+        balance=0,
     ):
         side = {
             "long": "buy",
@@ -329,7 +464,7 @@ class OrderControl:
             position: Optional[PositionKlass] = (
                 getattr(self.positions, kind) if self.positions else None
             )
-            return self.stats.open_orders(result, position)
+            return self.stats.open_orders(result, position, balance)
         return result
 
     def get_tp_orders(self, kind: PositionKind, stats=False):

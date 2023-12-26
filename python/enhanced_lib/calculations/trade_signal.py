@@ -21,6 +21,39 @@ class TradeInstanceType(typing.TypedDict):
     rr: int
 
 
+def _get_zone_nogen(
+    current_price: float, focus: float, percent_change: float, places: str = "%.5f"
+):
+    result = []
+    last = focus
+    focus_high = last * (1 + percent_change)
+    focus_low = last * (1 + percent_change) ** -1
+    if focus_high > current_price:
+        while focus_high > current_price:
+            if last < 1:  # to resolve for tother symbols
+                break
+            if focus_high == last:
+                break
+            result.append(to_f(last, places))
+            focus_high = last
+            last = focus_high * (1 + percent_change) ** -1
+            focus_low = last * (1 + percent_change) ** -1
+    else:
+        if focus_high <= current_price:
+            while focus_high <= current_price:
+                result.append( to_f(focus_high, places))
+                focus_low = focus_high
+                last = focus_low * (1 + percent_change)
+                focus_high = last * (1 + percent_change)
+        else:
+            while focus_low <= current_price:
+                result.append( to_f(focus_high, places))
+                focus_low = focus_high
+                last = focus_low * (1 + percent_change)
+                focus_high = last * (1 + percent_change)
+    return result
+
+
 # write a generator function that results values until the last value is greater than the focus
 def _get_zones(
     current_price: float, focus: float, percent_change: float, places: str = "%.5f"
@@ -245,7 +278,8 @@ class Signal:
         #         break
         top_zones = [
             self.to_f(x)
-            for x in _get_zones(
+            for x in _get_zone_nogen(
+            # for x in _get_zones(
                 current_price - self.min_price,
                 self.focus,
                 self.percent_change,
@@ -925,8 +959,8 @@ class Signal:
         it always increase the risk_reward by 1
         """
         margin_range = self.get_margin_range(current_price)
-        margin_zones = self.get_margin_zones(current_price)
-        remaining_zones = [x for x in margin_zones if x != margin_range]
+        # margin_zones = self.get_margin_zones(current_price)
+        # remaining_zones = [x for x in margin_zones if x != margin_range]
         # print("margin_range", margin_range, "support", self.support)
         # print('margin_zones', margin_zones)
         if margin_range:
@@ -949,6 +983,8 @@ class Signal:
             if min(entries) < self.to_f(current_price) < max(entries):
                 return sorted(entries)
             new_range = None
+            margin_zones = self.get_margin_zones(current_price)
+            remaining_zones = [x for x in margin_zones if x != margin_range]
             if remaining_zones:
                 new_range = remaining_zones[0][1]
                 if new_range:
