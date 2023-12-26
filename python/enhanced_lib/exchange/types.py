@@ -243,13 +243,13 @@ class OrderStats:
     def close_orders(
         self, orders: List[Order], position: PositionKlass
     ) -> CloseOrderStat:
-        def get_key():
+        def get_key(_key='entry_price'):
             if position:
                 return position.entry_price
             return orders[0].price if orders else 0
 
         places = get_decimal_places(str(get_key()))
-        decimal_places = get_decimal_places(str(orders[0].origQty)) if orders else 0
+        decimal_places = get_decimal_places(str(orders[0].origQty)) if orders else 3
         pnl = determine_pnl(
             position.entry_price,
             orders[0].entry_price,
