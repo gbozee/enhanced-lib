@@ -47,7 +47,6 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
         config,
         params,
     )
-    breakpoint()
     if not trades:
         return {
             "result": [],
