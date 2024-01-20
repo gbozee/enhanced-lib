@@ -261,14 +261,14 @@ class ExchangeCache:
 
         # return result
 
-    def get_calculations_for_kind(self, no_of_cpu=6):
+    def get_calculations_for_kind(self, no_of_cpu=6, strategy="entry"):
         zones = [
             {"entry": x["entry"], "stop": x["stop"]}
             for x in self.future_instance.trade_entries
         ]
         config = self.future_instance.config
         # use entry strategy because quantity causes errors
-        config.strategy = "entry"
+        config.strategy = strategy
         results = map(
             lambda x: config.determine_optimum_risk(
                 "long",  # doesn't work well with short
