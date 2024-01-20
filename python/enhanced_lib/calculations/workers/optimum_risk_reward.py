@@ -22,10 +22,20 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
             if config.kind == "long"
             else min(config.entry, config.stop)
         )
+    entry = (
+        max(config.entry, config.stop)
+        if config.kind == "long"
+        else min(config.entry, config.stop)
+    )
+    stop = (
+        min(config.entry, config.stop)
+        if config.kind == "long"
+        else max(config.entry, config.stop)
+    )
     params = {
         "take_profit": profit,
-        "entry": config.entry,
-        "stop": config.stop,
+        "entry": entry,
+        "stop": stop,
         "no_of_trades": y,
         "risk_reward": y,
         "increase": True,
@@ -37,6 +47,17 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
         config,
         params,
     )
+    breakpoint()
+    if not trades:
+        return {
+            "result": [],
+            "value": y,
+            "total": 0,
+            "max": 0,
+            "min": 0,
+            "entry": 0,
+            "max_index": -1,
+        }
     # print("trades", trades)
     _max = max([x["entry"] for x in trades]) if trades else 0
     _min = min([x["entry"] for x in trades]) if trades else 0

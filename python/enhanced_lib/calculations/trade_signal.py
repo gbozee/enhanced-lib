@@ -502,13 +502,13 @@ class Signal:
             # if market_trades:
             #     return limit_trades + [max(market_trades, key=lambda x: ["net"])]
             total_orders = limit_trades + market_trades
-            if self.minimum_size:
+            if self.minimum_size and len(total_orders) > 0:
                 greater_than_min_size = [
                     x for x in total_orders if x["quantity"] >= self.minimum_size
                 ]
                 less_than_min_size = [
                     x for x in total_orders if x["quantity"] < self.minimum_size
-                ]
+                ] or total_orders
                 pair_size = 0
                 if total_orders:
                     pair_size = math.ceil(
@@ -646,6 +646,8 @@ class Signal:
                         current_price, stop_loss, trade_zones, kind=kind
                     )
                     if not result:
+                        if self.zone_risk == 1 and len(futures) > 100:
+                            return []
                         if kind == "long":
                             m_z = self.get_margin_range(futures[0])
                             if m_z and m_z[0] < self.to_f(current_price):

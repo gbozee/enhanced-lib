@@ -169,6 +169,8 @@ def group_into_pairs_with_sum_less_than(
             result.append(currentGroup)
             currentGroup = []
             currentSum = 0
+    if not result:
+        return [currentGroup]
     return result
 
 
