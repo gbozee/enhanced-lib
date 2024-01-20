@@ -436,6 +436,7 @@ class Signal:
         if self.take_profit:
             take_profit = self.take_profit
         if number_of_orders > 0:
+            # self.zone_risk = self.risk_
             risk_per_trade = self.get_risk_per_trade(number_of_orders)
             allowed_spread = self.percent_change / 100
             limit_orders = [x for x in trade_zones[1:] if x <= self.to_f(current_price)]

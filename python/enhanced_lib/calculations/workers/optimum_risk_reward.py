@@ -1,6 +1,7 @@
 import typing
 from ..shared import AppConfig, build_config, to_f
 from .utils import run_in_parallel, chunks_in_threads
+import signal
 
 
 class EvalFuncType(typing.TypedDict):
@@ -214,6 +215,17 @@ def size_resolver(
     # }
 
 
+class TimeoutException(Exception):
+    pass
+
+
+def timeout_handler(signum, frame):
+    raise TimeoutException()
+
+
+signal.signal(signal.SIGALRM, timeout_handler)
+
+
 def determine_optimum_risk(
     app_config: AppConfig,
     max_size: float,
@@ -234,6 +246,7 @@ def determine_optimum_risk(
     while True:
         current_risk = app_config.risk_per_trade + (gap * start_index)
         try:
+            signal.alarm(60)
             result = size_resolver(
                 current_risk,
                 app_config,
@@ -242,9 +255,22 @@ def determine_optimum_risk(
                 ignore=ignore,
             )
         except Exception as e:
+            print(
+                "payload",
+                {
+                    "current_risk": current_risk,
+                    "app_config": app_config,
+                    "no_of_cpu": no_of_cpu,
+                    "with_trades": with_trades,
+                    "ignore": ignore,
+                },
+            )
             print("error", e)
+            signal.alarm(0)
             result = {"size": 0, "value": current_risk, "risk_reward": 0, "trades": []}
+            raise e
         size = to_f(result["size"], app_config.decimal_places)
+        print(f"size for risk {current_risk}", size)
         if size <= max_size:
             print(f"size for risk {current_risk}", size)
             highest = {**result, "size": size}
