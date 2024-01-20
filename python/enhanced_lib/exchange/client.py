@@ -18,6 +18,13 @@ class TradeActionParamType(TypedDict):
     trades: Dict[str, Any]
 
 
+class ALLExchangeParamType(TypedDict):
+    symbol: str
+    exchanges: List[str]
+    future_only: bool
+    save: bool
+
+
 class CandleStickParamType(TypedDict):
     symbol: str
     interval: Literal[
@@ -824,3 +831,5 @@ class TradeClient:
             },
         )
         return result["data"]
+
+    

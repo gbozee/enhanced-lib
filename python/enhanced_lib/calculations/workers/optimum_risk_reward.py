@@ -61,7 +61,7 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
     max_index = (
         [o["quantity"] for o in trades].index(_max_quantity) if _max_quantity else -1
     )
-    if isinstance(max_index,list):
+    if isinstance(max_index, list):
         max_index = -1
     # for i, x in enumerate(trades):
     #     total += x["quantity"]
@@ -165,7 +165,7 @@ def determine_optimum_reward(
     print("func", func)
     print("highest", highest)
     print("index", index)
-    raise Exception("No optimum reward found for ",app_config.risk_per_trade)
+    raise Exception("No optimum reward found for ", app_config.risk_per_trade)
 
 
 class TradeInstanceType(typing.TypedDict):
@@ -214,7 +214,6 @@ def size_resolver(
     # }
 
 
-
 def determine_optimum_risk(
     app_config: AppConfig,
     max_size: float,
@@ -224,7 +223,11 @@ def determine_optimum_risk(
     ignore=False,
 ) -> typing.Optional[RiskType]:
     start_index = 0
-    highest = None
+    highest = {
+        "value": app_config.risk_per_trade,
+        "risk_reward": app_config.risk_reward,
+        "size": max_size,
+    }
     # first = app_config.risk_per_trade + (gap * start_index)
     # result = size_resolver(first, app_config, no_of_cpu=no_of_cpu)
     # print("result", result)

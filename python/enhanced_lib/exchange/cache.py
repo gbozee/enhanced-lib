@@ -88,8 +88,8 @@ class ExchangeCache:
 
     def expected_pnl(self, kind: PositionKind):
         reverse = "short" if kind == "long" else "long"
-        tp = self.open_orders.get_tp_orders(kind,True)
-        sl = self.open_orders.get_sl_orders(reverse,True)
+        tp = self.open_orders.get_tp_orders(kind, True)
+        sl = self.open_orders.get_sl_orders(reverse, True)
         if tp and sl:
             return tp["pnl"] + sl["pnl"]
         return 0
@@ -260,6 +260,49 @@ class ExchangeCache:
         # result = run_in_threads(func, [(x,) for x in zones], num_threads=no_of_cpu)
 
         # return result
+
+    def get_calculations_for_kind(self, no_of_cpu=6):
+        zones = [
+            {"entry": x["entry"], "stop": x["stop"]}
+            for x in self.future_instance.trade_entries
+        ]
+        config = self.future_instance.config
+        # use entry strategy because quantity causes errors
+        config.strategy = "entry"
+        results = map(
+            lambda x: config.determine_optimum_risk(
+                "long",  # doesn't work well with short
+                x,
+                max_size=self.config.max_size,
+                gap=self.config.gap,
+                no_of_cpu=no_of_cpu,
+            ),
+            zones,
+        )
+        return [
+            {
+                "entry": to_f(x["entry"], config.price_places),
+                "stop": to_f(x["stop"], config.price_places),
+                "risk_per_trade": to_f(x["value"], config.decimal_places),
+                "risk_reward": x["risk_reward"],
+                "size": x["size"],
+            }
+            for x in [
+                {
+                    **x[0],
+                    **x[1],
+                }
+                for x in zip(zones, results)
+            ]
+        ]
+
+    async def save_trades(self, trades):
+        result = await self.account.save_trades(
+            self.symbol, {"long": [{**x, "trades": []} for x in trades], "short": []}
+        )
+
+    async def get_trades(self):
+        return await self.account.get_trades(self.symbol)
 
 
 class ProcessedParams:
