@@ -261,7 +261,7 @@ class ExchangeCache:
 
         # return result
 
-    def get_calculations_for_kind(self, no_of_cpu=6, strategy="entry"):
+    def get_calculations_for_kind(self, no_of_cpu=6, strategy="entry",kind='long'):
         zones = [
             {"entry": x["entry"], "stop": x["stop"]}
             for x in self.future_instance.trade_entries
@@ -271,7 +271,7 @@ class ExchangeCache:
         config.strategy = strategy
         results = map(
             lambda x: config.determine_optimum_risk(
-                "long",  # doesn't work well with short
+                kind,  # doesn't work well with short
                 x,
                 max_size=self.config.max_size,
                 gap=self.config.gap,

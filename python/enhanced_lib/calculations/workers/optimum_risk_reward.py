@@ -255,16 +255,19 @@ def determine_optimum_risk(
     ignore=False,
 ) -> typing.Optional[RiskType]:
     start_index = 0
-    highest = {
-        "value": app_config.risk_per_trade,
-        "risk_reward": app_config.risk_reward,
-        "size": max_size,
-    }
+    # highest = {
+    #     "value": app_config.risk_per_trade,
+    #     "risk_reward": app_config.risk_reward,
+    #     "size": max_size,
+    # }
+    highest = None
+    print("max_size", max_size)
     # first = app_config.risk_per_trade + (gap * start_index)
     # result = size_resolver(first, app_config, no_of_cpu=no_of_cpu)
     # print("result", result)
+    results = []
     while True:
-        current_risk = app_config.risk_per_trade + (gap * start_index)
+        current_risk = app_config.risk_per_trade + (2 ** (gap * start_index))
         try:
             signal.alarm(60)
             result = size_resolver(
@@ -290,14 +293,37 @@ def determine_optimum_risk(
             result = {"size": 0, "value": current_risk, "risk_reward": 0, "trades": []}
             raise e
         size = to_f(result["size"], app_config.decimal_places)
-        print(f"size for risk {current_risk}", size)
         if size <= max_size:
             print(f"size for risk {current_risk}", size)
-            highest = {**result, "size": size}
+            results.append(result)
+            # update = result
+            # previous = highest.get("value", 0) if highest else current_risk
+            # if highest and previous == highest["value"]:
+            #     update = highest
+            # highest = {
+            #     **update,
+            #     "risk_reward": result["risk_reward"],
+            #     "size": size,
+            #     "value": max(previous, current_risk),
+            # }
             # yield result
             start_index += 1
         else:
+            # print(f"size for risk {current_risk}", size)
+            # update = result
+            # previous = highest.get("value", 0) if highest else current_risk
+            # if highest and previous == highest["value"]:
+            #     update = highest
+            # highest = {
+            #     **update,
+            #     "risk_reward": result["risk_reward"],
+            #     "size": size,
+            #     "value": max(previous, current_risk),
+            # }
             break
+    if results:
+        return max(results, key=lambda x: x["size"])
+    return result
     return highest
 
 
