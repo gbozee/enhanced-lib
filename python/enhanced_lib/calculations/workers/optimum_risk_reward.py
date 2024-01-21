@@ -1,6 +1,7 @@
 import typing
 from ..shared import AppConfig, build_config, to_f
 from .utils import run_in_parallel, chunks_in_threads
+import math
 import signal
 
 
@@ -133,13 +134,7 @@ def determine_optimum_reward(
         # )
         return found_index == 0
 
-    _options = {"default": run_in_parallel, "chunks": chunks_in_threads}
-    if ignore:
-        func = [eval_func(x, app_config) for x in risk_rewards]
-    else:
-        func = _options[option](
-            eval_func, [(x, app_config) for x in risk_rewards], no_of_cpu=no_of_cpu
-        )
+    func = [eval_func(x, app_config) for x in risk_rewards]
     highest = 0
     new_func = []
     for j in func:
@@ -151,33 +146,9 @@ def determine_optimum_reward(
                 if app_config.kind == "long":
                     highest = max(highest, j["entry"])
                 else:
-                    highest = min(highest, j["entry"])
+                    highest = min(highest, j["entry"]) if highest > 0 else j["entry"]
     func = new_func
-    # func = [x for x in func if x and passCriterion(x)]
-    # highest = 0
-    # if func:
-    #     if criterion == "quantity":
-    #         highest = max([x["max"] for x in func])
-    #     else:
-    #         if app_config.kind == "long":
-    #             highest = max([x["entry"] for x in func])
-    #         else:
-    #             highest = min([x["entry"] for x in func])
     key = "max" if criterion == "quantity" else "entry"
-    if app_config.as_array:
-        working_list = set([x[key] for x in func])
-        highest_values = (
-            sorted(list(working_list), reverse=True)
-            if (criterion == "quantity" or app_config.kind == "long")
-            else sorted(list(working_list))
-        )[:5]
-        considered = [x for x in func if x[key] in highest_values]
-        considered_sorted = (
-            sorted(considered, key=lambda x: x[key], reverse=True)
-            if (criterion == "quantity" or app_config.kind == "long")
-            else sorted(considered, key=lambda x: x[key])
-        )
-        return [x["value"] for x in considered_sorted[:5]]
     index = find_index_by_condition(func, lambda x: x[key] == highest)
     if index > -1:
         if app_config.raw:
@@ -217,7 +188,7 @@ def size_resolver(
     app_config.risk_per_trade = trade_no
     app_config.raw = True
 
-    result = determine_optimum_reward(app_config, no_of_cpu=no_of_cpu, ignore=ignore)
+    result = determine_optimum_reward(app_config, no_of_cpu=no_of_cpu, ignore=True)
     if result:
         r = {
             "value": trade_no,
@@ -246,14 +217,101 @@ def timeout_handler(signum, frame):
 signal.signal(signal.SIGALRM, timeout_handler)
 
 
+def group_in_pairs(array, pairs=2):
+    return [array[i : i + pairs] for i in range(0, len(array), pairs)]
+
+
+def single_worker_on_array(
+    app_config: AppConfig, risk_rewards: typing.List[float], no_of_cpu=4
+):
+    return [size_resolver(x, app_config, no_of_cpu=no_of_cpu) for x in risk_rewards]
+
+
+def spawn_workers_on_array(
+    app_config: AppConfig, risk_rewards: typing.List[float], no_of_cpu=4
+):
+    pairs = math.ceil(len(risk_rewards) / 4)
+    arrayPairs = group_in_pairs(risk_rewards, pairs)
+    result = run_in_parallel(
+        single_worker_on_array,
+        [(app_config, x) for x in arrayPairs],
+        no_of_cpu=no_of_cpu,
+    )
+    result = [item for sublist in result for item in sublist]
+    return result
+
+
+def get_highest_value(arr: typing.List[typing.Any]):
+    return max(arr, key=lambda x: x["size"])
+
+
+def create_array(start, end, gap):
+    result = []
+    current = start
+    while current <= end:
+        result.append(current)
+        current += gap
+    return result
+
+
+def batch_resolver_generator(
+    app_config: AppConfig,
+    max_size: float,
+    gap=1,
+    batchSize=10,
+    no_of_cpu=4,
+):
+    first_value = app_config.risk_per_trade
+    start = 0
+    while True:
+        first_batch = create_array(first_value, first_value + (batchSize * gap), gap)
+        result = spawn_workers_on_array(app_config, first_batch, no_of_cpu=no_of_cpu)
+        all_less_than_max = all([x["size"] <= max_size for x in result])
+        if all_less_than_max:
+            yield get_highest_value(result)
+            first_value = first_value + batchSize * gap
+            start += 1
+        else:
+            valid = [x for x in result if x["size"] <= max_size]
+            if valid:
+                yield get_highest_value(valid)
+            if start == 0:
+                yield result[0]
+            break
+
+
+def consume_batch_generator(
+    app_config: AppConfig,
+    max_size: float,
+    gap=1,
+    batchSize=10,
+    no_of_cpu=4,
+):
+    highest = None
+    highest_arr = []
+    for r in batch_resolver_generator(
+        app_config, max_size, gap=gap, batchSize=batchSize, no_of_cpu=no_of_cpu
+    ):
+        # highest = r
+        highest_arr.append(r)
+        print(f'size for {r["value"]} ', r["size"])
+    if highest_arr:
+        highest = max(highest_arr, key=lambda x: x["size"])
+    return highest
+
+
 def determine_optimum_risk(
     app_config: AppConfig,
     max_size: float,
     gap: float = 1,
+    multiplier=10,
     no_of_cpu=4,
     with_trades=False,
     ignore=False,
 ) -> typing.Optional[RiskType]:
+    return consume_batch_generator(
+        app_config, max_size, gap=gap, batchSize=multiplier, no_of_cpu=no_of_cpu
+    )
     start_index = 0
     # highest = {
     #     "value": app_config.risk_per_trade,

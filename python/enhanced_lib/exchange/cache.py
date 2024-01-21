@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from ..calculations.workers.utils import run_in_threads
+from ..calculations.workers.utils import chunks_in_threads, run_in_threads
 
 from ..calculations.future_config import (
     Config,
@@ -261,14 +261,26 @@ class ExchangeCache:
 
         # return result
 
-    def get_calculations_for_kind(self, no_of_cpu=6, strategy="entry",kind='long'):
+    def get_calculations_for_kind(self, no_of_cpu=6, strategy="entry", kind="long"):
         zones = [
             {"entry": x["entry"], "stop": x["stop"]}
             for x in self.future_instance.trade_entries
         ]
         config = self.future_instance.config
         # use entry strategy because quantity causes errors
-        config.strategy = strategy
+        config.strategy = 'quantity' if self.config.max_size > 0.2 else 'entry'
+        # config.strategy = strategy
+        # results = run_in_threads(
+        #     lambda x: config.determine_optimum_risk(
+        #         kind,  # doesn't work well with short
+        #         x,
+        #         max_size=self.config.max_size,
+        #         gap=self.config.gap,
+        #         no_of_cpu=no_of_cpu,
+        #     ),
+        #     [(x,) for x in zones],
+        #     num_threads=len(zones),
+        # )
         results = map(
             lambda x: config.determine_optimum_risk(
                 kind,  # doesn't work well with short
