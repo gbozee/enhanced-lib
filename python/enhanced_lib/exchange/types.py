@@ -3,6 +3,7 @@ from typing import List, Literal, Optional, TypedDict
 
 from ..calculations.utils import determine_pnl, get_decimal_places, to_f
 from ..calculations.hedge import determine_liquidation
+import statistics
 
 
 def inject_fields(parent):
@@ -396,6 +397,14 @@ class OrderStats:
             ratio = 1
         fee_rate = self.maker if orders[0].stop_price == 0 else self.taker
         return {
+            'position':{
+                'entry': position.entry_price,
+                'size': position.size
+            },
+            'tp':{
+                'entry': statistics.mean([x.entry_price for x in orders]),
+                'size': statistics.mean([x.quantity for x in orders])
+            },
             "pnl": to_f(pnl * ratio, f"%.{places}f"),
             "remaining_size": to_f((1 - ratio) * position.size, f"%.{decimal_places}f"),
             "fees": to_f(

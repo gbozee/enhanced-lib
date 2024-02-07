@@ -230,7 +230,7 @@ def single_worker_on_array(
 def spawn_workers_on_array(
     app_config: AppConfig, risk_rewards: typing.List[float], no_of_cpu=4
 ):
-    pairs = math.ceil(len(risk_rewards) / 4)
+    pairs = math.ceil(len(risk_rewards) / no_of_cpu)
     arrayPairs = group_in_pairs(risk_rewards, pairs)
     result = run_in_parallel(
         single_worker_on_array,
