@@ -41,13 +41,13 @@ def _get_zone_nogen(
     else:
         if focus_high <= current_price:
             while focus_high <= current_price:
-                result.append( to_f(focus_high, places))
+                result.append(to_f(focus_high, places))
                 focus_low = focus_high
                 last = focus_low * (1 + percent_change)
                 focus_high = last * (1 + percent_change)
         else:
             while focus_low <= current_price:
-                result.append( to_f(focus_high, places))
+                result.append(to_f(focus_high, places))
                 focus_low = focus_high
                 last = focus_low * (1 + percent_change)
                 focus_high = last * (1 + percent_change)
@@ -279,7 +279,7 @@ class Signal:
         top_zones = [
             self.to_f(x)
             for x in _get_zone_nogen(
-            # for x in _get_zones(
+                # for x in _get_zones(
                 current_price - self.min_price,
                 self.focus,
                 self.percent_change,
@@ -545,7 +545,13 @@ class Signal:
                         ),
                     }
                     for x in less_than_min_size
-                    if (z := determine_avg([{**y, "price": y["entry"]} for y in x]))  # noqa: F405
+                    if (
+                        z := determine_avg(
+                            [{**y, "price": y["entry"]} for y in x],
+                            price_places=self.price_places,
+                            places=self.decimal_places,
+                        )
+                    )  # noqa: F405
                     is not None
                 ]
                 return greater_than_min_size + less_than_min_size

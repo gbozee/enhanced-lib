@@ -132,7 +132,9 @@ def determine_optimum_reward(
         # found_index = find_index_by_condition(
         #     x["result"], lambda j: j["quantity"] == x["max"]
         # )
-        return found_index == 0
+        if found_index == 0:
+            return True
+        return found_index >-1
 
     func = [eval_func(x, app_config) for x in risk_rewards]
     highest = 0
