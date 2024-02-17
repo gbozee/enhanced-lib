@@ -372,13 +372,18 @@ class OrderStats:
             "loss": to_f(
                 determine_pnl(avg_entry, last_order, size, kind=position.kind),
                 f"%.{places}f",
-            ) if last_order else 0,
+            )
+            if last_order
+            else 0,
         }
 
     def close_orders(
-        self, orders: List[Order], position: PositionKlass
+        self,
+        orders: List[Order],
+        position: PositionKlass,
+        opposite_result: Optional[List[Order]] = None,
     ) -> CloseOrderStat:
-        def get_key(_key='entry_price'):
+        def get_key(_key="entry_price"):
             if position:
                 return position.entry_price
             return orders[0].price if orders else 0
@@ -396,19 +401,30 @@ class OrderStats:
         else:
             ratio = 1
         fee_rate = self.maker if orders[0].stop_price == 0 else self.taker
+        working_orders = orders
+        if opposite_result:
+            if (
+                position.kind == "long"
+                and opposite_result[0].entry_price < orders[0].entry_price
+            ):
+                if opposite_result[0].entry_price > position.entry_price:
+                    working_orders = opposite_result[:1]
+            if (
+                position.kind == "short"
+                and opposite_result[0].entry_price > orders[0].entry_price
+            ):
+                if opposite_result[0].entry_price < position.entry_price:
+                    working_orders = opposite_result[:1]
         return {
-            'position':{
-                'entry': position.entry_price,
-                'size': position.size
-            },
-            'tp':{
-                'entry': statistics.mean([x.entry_price for x in orders]),
-                'size': statistics.mean([x.quantity for x in orders])
+            "position": {"entry": position.entry_price, "size": position.size},
+            "tp": {
+                "entry": statistics.mean([x.entry_price for x in working_orders]),
+                "size": statistics.mean([x.quantity for x in working_orders]),
             },
             "pnl": to_f(pnl * ratio, f"%.{places}f"),
             "remaining_size": to_f((1 - ratio) * position.size, f"%.{decimal_places}f"),
             "fees": to_f(
-                (orders[0].entry_price * orders[0].quantity) * fee_rate,
+                (working_orders[0].entry_price * working_orders[0].quantity) * fee_rate,
                 f"%.{decimal_places}f",
             ),
         }
@@ -476,21 +492,36 @@ class OrderControl:
             return self.stats.open_orders(result, position, balance)
         return result
 
-    def get_tp_orders(self, kind: PositionKind, stats=False):
+    def get_tp_orders(self, kind: PositionKind, stats=False,eager=True):
         side = {
             "long": "sell",
             "short": "buy",
         }
         result = [x for x in self.get_orders(kind, side[kind]) if x.stop_price == 0]
+        opposite_kind = "long" if kind == "short" else "short"
+        opposite_side = "sell" if opposite_kind == "short" else "buy"
+        opposite_result = [
+            x
+            for x in self.get_orders(opposite_kind, opposite_side)
+            if x.stop_price == 0
+        ]
         if stats and result:
             position: Optional[PositionKlass] = (
                 getattr(self.positions, kind) if self.positions else None
             )
             if position:
                 result = sorted(result, key=lambda x: x.entry_price)
+                opposite_result = sorted(
+                    opposite_result, key=lambda x: x.entry_price, reverse=True
+                )
                 if kind == "long":
                     result = sorted(result, key=lambda x: x.entry_price, reverse=True)
-                return self.stats.close_orders(result, position)
+                    opposite_result = sorted(
+                        opposite_result, key=lambda x: x.entry_price
+                    )
+                return self.stats.close_orders(
+                    result, position, opposite_result=opposite_result if eager else None
+                )
         return result
 
     def get_sl_orders(self, kind: PositionKind, stats=False):
