@@ -332,6 +332,11 @@ class Config:
             ignore=ignore,
         )
 
+    def build_trades(self):
+        """Build out the trades based off the config"""
+
+        return workers.eval_func(self.risk_reward, self.app_config)
+
     def get_trading_zones(self, kind: Literal["long", "short"]):
         """This is the main function that will be used to determine the trading zone based
         off the config support and resistance. It uses a list of zones calculated using the

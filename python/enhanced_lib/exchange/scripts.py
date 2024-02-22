@@ -18,7 +18,7 @@ async def run(account, symbol, url):
     # config.determine_optimum_risk('short',result[1],max_size=.1,gap=.1,ignore=False)
     # risk_results = map(lambda x: config.determine_optimum_risk('long',x,max_size=.1,gap=.1),result)
     # print(list(risk_results))
-    result = exchange.get_calculations_for_kind(kind="short")
+    result = exchange.get_calculations_for_kind(kind="long")
     # result
     await exchange.save_trades(result)
     await exchange.get_trades()

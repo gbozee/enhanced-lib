@@ -147,6 +147,7 @@ def determine_optimum_reward(
                     highest = max(highest, j["entry"])
                 else:
                     highest = min(highest, j["entry"]) if highest > 0 else j["entry"]
+    old_func = [x for x in func]
     func = new_func
     key = "max" if criterion == "quantity" else "entry"
     index = find_index_by_condition(func, lambda x: x[key] == highest)
@@ -155,6 +156,7 @@ def determine_optimum_reward(
             return func[index]
         return func[index].get("value")
     print("func", func)
+    print('old_func',old_func)
     print("highest", highest)
     print("index", index)
     raise Exception("No optimum reward found for ", app_config.risk_per_trade)

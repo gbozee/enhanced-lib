@@ -260,6 +260,8 @@ class Order:
 @dataclass
 @inject_fields(PositionDict)
 class PositionKlass:
+    fee_rate = 0.018
+
     @property
     def size(self):
         return abs(self.positionAmt)
@@ -271,6 +273,19 @@ class PositionKlass:
     @property
     def kind(self) -> PositionKind:
         return self.positionSide.lower()
+
+    def determine_pnl(self, current_price: float):
+        return determine_pnl(
+            self.entry_price,
+            current_price,
+            self.size,
+            kind=self.kind,
+        )
+
+    def determine_minimum_pnl(self, fee_percent):
+        notional_value = self.entry_price * self.size
+        value = notional_value * self.fee_rate / 100
+        return value / fee_percent
 
 
 @dataclass
@@ -492,7 +507,7 @@ class OrderControl:
             return self.stats.open_orders(result, position, balance)
         return result
 
-    def get_tp_orders(self, kind: PositionKind, stats=False,eager=True):
+    def get_tp_orders(self, kind: PositionKind, stats=False, eager=True):
         side = {
             "long": "sell",
             "short": "buy",

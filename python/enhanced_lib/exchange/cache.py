@@ -39,6 +39,20 @@ class ExchangeCache:
         instance.use_default = False
         return instance
 
+    def build_custom_config(self, payload, kind):
+        config = self.account.general_config.get("config") or {}
+        if not config:
+            config[self.symbol.upper()] = {}
+        value = config[self.symbol.upper()]
+        value["entry"] = payload["entry"]
+        value["stop"] = payload["stop"]
+        value["kind"] = kind
+        value["risk_reward"] = payload["risk_reward"]
+        value["risk_per_trade"] = payload["risk_per_trade"]
+        instance = Config(**value)
+
+        return instance
+
     def get_exchange_information(self):
         result = self.account.general_config.get("position_information") or {}
         if not result:
@@ -268,7 +282,7 @@ class ExchangeCache:
         ]
         config = self.future_instance.config
         # use entry strategy because quantity causes errors
-        config.strategy = 'quantity' if self.config.max_size > 0.2 else 'entry'
+        config.strategy = "quantity" if self.config.max_size > 0.2 else "entry"
         # config.strategy = strategy
         # results = run_in_threads(
         #     lambda x: config.determine_optimum_risk(
@@ -315,6 +329,59 @@ class ExchangeCache:
 
     async def get_trades(self):
         return await self.account.get_trades(self.symbol)
+
+    def build_trade_zones(self, trades, kind="long",fee_percent=.06):
+        long_trades = trades.get("long", [])
+        short_trades = trades.get("short", [])
+        intermediate = []
+        position = self.position.long if kind == "long" else self.position.short
+        minimum = position.determine_minimum_pnl(fee_percent)
+        if long_trades and not short_trades:
+            intermediate = [
+                {**x, "entry": x["stop"], "stop": x["entry"]} for x in long_trades
+            ]
+        if short_trades and not long_trades:
+            intermediate = [
+                {**x, "entry": x["stop"], "stop": x["entry"]} for x in short_trades
+            ]
+        if intermediate:
+            if not long_trades:
+                long_trades = intermediate
+            if not short_trades:
+                short_trades = intermediate
+
+        t = long_trades if kind == "long" else short_trades
+
+        def condition(x):
+            if position.kind == "long":
+                return x["entry"] >= position.entry_price
+            return x["entry"] <= position.entry_price
+
+        result = [
+            {
+                **x,
+                # "trades": build_trades(self, x, kind),
+                "trades": [y["entry"] for y in build_trades(self, x, kind)],
+            }
+            for x in t
+            if condition(x)
+        ]
+        # combined_trades = result
+        combined_trades = [z for y in [x["trades"] for x in result] for z in y]
+        combined_trades = [
+            {"price": x, "pnl": position.determine_pnl(x)} for x in combined_trades
+        ]
+        combined_trades = [x for x in combined_trades if x["pnl"] >= minimum]
+        if combined_trades:
+            return min(combined_trades, key=lambda x: x["pnl"])
+        return None
+
+
+def build_trades(klass: ExchangeCache, payload, kind):
+    config = klass.build_custom_config(payload, kind)
+    config.strategy = 'entry'
+    result = config.build_trades()
+    return result["result"]
 
 
 class ProcessedParams:
