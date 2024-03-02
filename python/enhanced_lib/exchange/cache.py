@@ -27,11 +27,14 @@ class ExchangeCache:
     def future_instance(self):
         return FutureInstance(self.get_future_config())
 
-    def get_future_config(self):
+    def get_future_config(self, additional=None):
+        # additional is to be used when you want to update the config
         config = self.account.general_config.get("config") or {}
         if not config:
             config[self.symbol.upper()] = {}
         value = config[self.symbol.upper()]
+        if additional:
+            value.update(additional)
         instance = Config(**value)
         if value.get("min_size"):
             instance.minimum_size = value.get("min_size")
@@ -375,6 +378,14 @@ class ExchangeCache:
         if combined_trades:
             return min(combined_trades, key=lambda x: x["pnl"])
         return None
+    async def update_support_resistance(self, support=None, resistance=None):
+        """New function to update support and resistance"""
+        payload = {}
+        if support:
+            payload["support"] = support
+        if resistance:
+            payload["resistance"] = resistance
+        await self.account.update_config_fields(self.symbol, payload)
 
 
 def build_trades(klass: ExchangeCache, payload, kind):

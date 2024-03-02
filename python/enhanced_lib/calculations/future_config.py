@@ -274,6 +274,7 @@ class Config:
     zone_split: Optional[int] = None
     minimum_size: Optional[float] = None
     strategy: Optional[Literal["quantity", "entry"]] = "quantity"
+    derived: Optional[Any] = None
 
     def as_dict(self):
         fields = shared.AppConfig.get_all_fields()
