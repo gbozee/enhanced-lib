@@ -32,3 +32,10 @@ async def main(symbol, host, accounts):
         else:
             await run(account, symbol, host)
         print(f"Completed {account}")
+
+
+
+async def get_exchange(account,symbol,host='https://app-dev.beeola.me'):
+    db = Database(host)
+    exchange = await db.get_initialized_exchange(account,symbol,account,True)
+    return exchange
