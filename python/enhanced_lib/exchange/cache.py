@@ -334,11 +334,13 @@ class ExchangeCache:
         return await self.account.get_trades(self.symbol)
 
     def build_trade_zones(self, trades, kind="long",fee_percent=.06):
+        fee_value = self.account.general_config['config'][self.symbol].get('fee_percent',fee_percent)
         long_trades = trades.get("long", [])
         short_trades = trades.get("short", [])
         intermediate = []
         position = self.position.long if kind == "long" else self.position.short
-        minimum = position.determine_minimum_pnl(fee_percent)
+        minimum = position.determine_minimum_pnl(fee_value)
+        print('minimum',minimum,'fee_value',fee_value)
         if long_trades and not short_trades:
             intermediate = [
                 {**x, "entry": x["stop"], "stop": x["entry"]} for x in long_trades
@@ -377,7 +379,11 @@ class ExchangeCache:
         combined_trades = [x for x in combined_trades if x["pnl"] >= minimum]
         if combined_trades:
             return min(combined_trades, key=lambda x: x["pnl"])
-        return None
+        close_price = position.determine_close_price(minimum)
+        return {
+            'price':close_price,
+            'pnl':minimum
+        }
     async def update_support_resistance(self, support=None, resistance=None):
         """New function to update support and resistance"""
         payload = {}

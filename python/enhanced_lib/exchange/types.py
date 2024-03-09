@@ -1,7 +1,12 @@
 from dataclasses import dataclass
 from typing import List, Literal, Optional, TypedDict
 
-from ..calculations.utils import determine_pnl, get_decimal_places, to_f
+from ..calculations.utils import (
+    determine_pnl,
+    get_decimal_places,
+    to_f,
+    determine_close_price,
+)
 from ..calculations.hedge import determine_liquidation
 import statistics
 
@@ -286,6 +291,9 @@ class PositionKlass:
         notional_value = self.entry_price * self.size
         value = notional_value * self.fee_rate / 100
         return value / fee_percent
+
+    def determine_close_price(self, pnl: float):
+        return determine_close_price(self.entry_price, pnl, self.size, kind=self.kind)
 
 
 @dataclass

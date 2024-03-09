@@ -275,6 +275,8 @@ class Config:
     minimum_size: Optional[float] = None
     strategy: Optional[Literal["quantity", "entry"]] = "quantity"
     derived: Optional[Any] = None
+    fee_percent: Optional[float] = 0.0006
+    
 
     def as_dict(self):
         fields = shared.AppConfig.get_all_fields()
