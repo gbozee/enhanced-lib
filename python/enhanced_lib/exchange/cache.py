@@ -333,7 +333,7 @@ class ExchangeCache:
     async def get_trades(self):
         return await self.account.get_trades(self.symbol)
 
-    def build_trade_zones(self, trades, kind="long",fee_percent=.06):
+    def build_trade_zones(self, trades={}, kind="long",fee_percent=.06):
         fee_value = self.account.general_config['config'][self.symbol].get('fee_percent',fee_percent)
         long_trades = trades.get("long", [])
         short_trades = trades.get("short", [])
@@ -341,44 +341,44 @@ class ExchangeCache:
         position = self.position.long if kind == "long" else self.position.short
         minimum = position.determine_minimum_pnl(fee_value)
         print('minimum',minimum,'fee_value',fee_value)
-        if long_trades and not short_trades:
-            intermediate = [
-                {**x, "entry": x["stop"], "stop": x["entry"]} for x in long_trades
-            ]
-        if short_trades and not long_trades:
-            intermediate = [
-                {**x, "entry": x["stop"], "stop": x["entry"]} for x in short_trades
-            ]
-        if intermediate:
-            if not long_trades:
-                long_trades = intermediate
-            if not short_trades:
-                short_trades = intermediate
+        # if long_trades and not short_trades:
+        #     intermediate = [
+        #         {**x, "entry": x["stop"], "stop": x["entry"]} for x in long_trades
+        #     ]
+        # if short_trades and not long_trades:
+        #     intermediate = [
+        #         {**x, "entry": x["stop"], "stop": x["entry"]} for x in short_trades
+        #     ]
+        # if intermediate:
+        #     if not long_trades:
+        #         long_trades = intermediate
+        #     if not short_trades:
+        #         short_trades = intermediate
 
-        t = long_trades if kind == "long" else short_trades
+        # t = long_trades if kind == "long" else short_trades
 
-        def condition(x):
-            if position.kind == "long":
-                return x["entry"] >= position.entry_price
-            return x["entry"] <= position.entry_price
+        # def condition(x):
+        #     if position.kind == "long":
+        #         return x["entry"] >= position.entry_price
+        #     return x["entry"] <= position.entry_price
 
-        result = [
-            {
-                **x,
-                # "trades": build_trades(self, x, kind),
-                "trades": [y["entry"] for y in build_trades(self, x, kind)],
-            }
-            for x in t
-            if condition(x)
-        ]
-        # combined_trades = result
-        combined_trades = [z for y in [x["trades"] for x in result] for z in y]
-        combined_trades = [
-            {"price": x, "pnl": position.determine_pnl(x)} for x in combined_trades
-        ]
-        combined_trades = [x for x in combined_trades if x["pnl"] >= minimum]
-        if combined_trades:
-            return min(combined_trades, key=lambda x: x["pnl"])
+        # result = [
+        #     {
+        #         **x,
+        #         # "trades": build_trades(self, x, kind),
+        #         "trades": [y["entry"] for y in build_trades(self, x, kind)],
+        #     }
+        #     for x in t
+        #     if condition(x)
+        # ]
+        # # combined_trades = result
+        # combined_trades = [z for y in [x["trades"] for x in result] for z in y]
+        # combined_trades = [
+        #     {"price": x, "pnl": position.determine_pnl(x)} for x in combined_trades
+        # ]
+        # combined_trades = [x for x in combined_trades if x["pnl"] >= minimum]
+        # if combined_trades:
+        #     return min(combined_trades, key=lambda x: x["pnl"])
         close_price = position.determine_close_price(minimum)
         return {
             'price':close_price,
