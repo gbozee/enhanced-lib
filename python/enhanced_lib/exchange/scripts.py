@@ -24,7 +24,7 @@ async def run(account, symbol, url):
     await exchange.get_trades()
 
 
-async def main(symbol, host, accounts):
+async def main(symbol,  accounts,host='https://app-dev.beeola.me'):
     for account in accounts:
         if isinstance(symbol, list):
             for s in symbol:
