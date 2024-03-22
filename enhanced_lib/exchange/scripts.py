@@ -1,4 +1,5 @@
 from .database import Database
+import numpy as np
 
 # db = Database('http://localhost:35969')
 
@@ -24,7 +25,7 @@ async def run(account, symbol, url):
     await exchange.get_trades()
 
 
-async def main(symbol,  accounts,host='https://app-dev.beeola.me'):
+async def main(symbol,  accounts, host='https://app-dev.beeola.me'):
     for account in accounts:
         if isinstance(symbol, list):
             for s in symbol:
@@ -34,8 +35,32 @@ async def main(symbol,  accounts,host='https://app-dev.beeola.me'):
         print(f"Completed {account}")
 
 
-
-async def get_exchange(account,symbol,host='https://app-dev.beeola.me'):
+async def get_exchange(account, symbol, host='https://app-dev.beeola.me'):
     db = Database(host)
-    exchange = await db.get_initialized_exchange(account,symbol,account,True)
+    exchange = await db.get_initialized_exchange(account, symbol, account, True)
     return exchange
+
+
+async def update_support_and_resistance(accounts, symbol, payload, host='https://app-dev.beeola.me'):
+    for account in accounts:
+        exchange = await get_exchange(account, symbol, host)
+        await exchange.account.update_config_fields(exchange.symbol, payload)
+        print('Updated support and resistance for', account)
+
+
+def get_s_r(pair1,pair2):
+    coeeficients = np.array(
+        [[pair1[0]+1, -pair1[0]],
+        [pair2[0], -pair2[0]]
+]        )
+    
+    constants = np.array([pair1[1], pair2[1]])
+    
+    solution = np.linalg.solve(coeeficients, constants)
+    
+    high,low = solution
+    
+    return {
+        'high': high,
+        'low': low
+    }
