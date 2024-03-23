@@ -278,7 +278,7 @@ class ExchangeCache:
 
         # return result
 
-    def get_calculations_for_kind(self, no_of_cpu=6, strategy="entry", kind="long"):
+    def get_calculations_for_kind(self, no_of_cpu=6, strategy="entry", kind="long",daemon=False):
         zones = [
             {"entry": x["entry"], "stop": x["stop"]}
             for x in self.future_instance.trade_entries
@@ -305,6 +305,7 @@ class ExchangeCache:
                 max_size=self.config.max_size,
                 gap=self.config.gap,
                 no_of_cpu=no_of_cpu,
+                ignore=daemon
             ),
             zones,
         )

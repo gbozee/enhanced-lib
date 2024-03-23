@@ -5,7 +5,7 @@ with open('requirements.txt') as f:
 
 setup(
     name="enhanced_lib",
-    version="0.1.14",
+    version="0.1.16",
     packages=find_packages(),
     install_requires=required
 )
