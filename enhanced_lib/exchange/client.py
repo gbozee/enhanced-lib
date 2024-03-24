@@ -637,6 +637,7 @@ class TradeClient:
                     }
                 },
                 "sub_accounts": params["sub_accounts"],
+                'fee_rate':params.get('fee_rate')
             },
         )
         return result
