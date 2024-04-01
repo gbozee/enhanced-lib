@@ -75,9 +75,22 @@ class ExchangeCache:
             }
         payload = instance["payload"]
         if not payload:
-            result[self.symbol.upper()]["payload"]["future"] = {
-                self.symbol.lower(): {},
+            value = {
+                self.symbol.upper():{
+                    "payload": {
+                        "future": {
+                            self.symbol.lower(): {},
+                        }
+                    }
+                }
             }
+            if self.symbol.upper() not in result or 'payload' not in result[self.symbol.upper()] or not result[self.symbol.upper()]['payload']:
+                result.update(value)
+            else:
+                result[self.symbol.upper()]["payload"]["future"] = {
+                    self.symbol.lower(): {},
+                }
+            payload = {'future':{self.symbol.lower():{}}} if not payload else payload
         future = payload["future"]
         if not future:
             result[self.symbol.upper()]["payload"]["future"][self.symbol.lower()] = {}

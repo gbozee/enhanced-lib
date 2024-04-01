@@ -131,7 +131,7 @@ def determine_pnl(
 def fibonacci_analysis(support: float, resistance: float, kind="long",trend='long', places="%.1f"):
     swing_high = resistance if trend == "long" else support
     swing_low = support if trend == "long" else resistance
-    ranges = [0, 0.236, 0.382, 0.5, 0.618, 0.789, 1]
+    ranges = [0, 0.236, 0.382, 0.5, 0.618, 0.789, 1,1.272,1.414,1.618]
     fib_calc = lambda p, h, l: (p * (h - l)) + l
     fib_values = [fib_calc(x, swing_high, swing_low) for x in ranges]
     if kind == 'short':
