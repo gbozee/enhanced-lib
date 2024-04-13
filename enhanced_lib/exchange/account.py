@@ -42,7 +42,7 @@ class BaseAccount:
     ):
         raise NotImplementedError
 
-    async def fetch_latest(self, symbol: str, save=True):
+    async def fetch_latest(self, symbol: str, save=True, margin=False):
         raise NotImplementedError
 
     async def save_config(self, symbol: str, profile: ProfileDict):
@@ -91,19 +91,19 @@ class Account(BaseAccount):
         if _resistance:
             await self.update_config_fields(symbol, {"resistance": _resistance})
 
-    async def _fetch_latest(self, symbol: str, save=True):
+    async def _fetch_latest(self, symbol: str, save=True,margin=False):
         result = await self.client_helper(
             Constants.EXCHANGE_INFO,
-            {"owner": self.owner, "symbol": symbol, "future_only": True, "save": save},
+            {"owner": self.owner, "symbol": symbol, "future_only": not margin, "save": save},
         )
         self.general_config[AccountKeys.POSITION_INFORMATION][symbol.upper()] = {
             "payload": result
         }
         return result
 
-    async def fetch_latest(self, symbol: str, save=True):
+    async def fetch_latest(self, symbol: str, save=True, margin=False):
         await asyncio.gather(
-            self._fetch_latest(symbol, save),
+            self._fetch_latest(symbol, save,margin=margin),
             self.fetch_config(symbol),
         )
 

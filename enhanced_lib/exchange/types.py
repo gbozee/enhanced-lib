@@ -92,30 +92,54 @@ class ProfileDict(TypedDict):
 
 
 class OrderDict(TypedDict):
-    orderId: int
-    symbol: str
-    status: str
-    clientOrderId: str
-    price: str
-    avgPrice: str
-    origQty: str
-    executedQty: str
-    cumQuote: str
-    timeInForce: str
-    type: str
-    reduceOnly: bool
-    closePosition: bool
-    side: str
-    positionSide: str
-    stopPrice: str
-    workingType: str
-    priceProtect: bool
-    origType: str
-    priceMatch: str
-    selfTradePreventionMode: str
-    goodTillDate: int
-    time: int
-    updateTime: int
+    orderId: Optional[int]
+    symbol: Optional[str]
+    status: Optional[str]
+    clientOrderId: Optional[str]
+    price: Optional[str]
+    avgPrice: Optional[str]
+    origQty: Optional[str]
+    executedQty: Optional[str]
+    cumQuote: Optional[str]
+    timeInForce: Optional[str]
+    type: Optional[str]
+    reduceOnly: Optional[bool]
+    closePosition: Optional[bool]
+    side: Optional[str]
+    positionSide: Optional[str]
+    stopPrice: Optional[str]
+    workingType: Optional[str]
+    priceProtect: Optional[bool]
+    origType: Optional[str]
+    priceMatch: Optional[str]
+    selfTradePreventionMode: Optional[str]
+    goodTillDate: Optional[int]
+    time: Optional[int]
+    updateTime: Optional[int]
+    cummulativeQuoteQty: Optional[str]
+    icebergQty: Optional[str]
+    isWorking: Optional[bool]
+    isIsolated: Optional[bool]
+
+class MarginOrderDict(TypedDict):
+    orderId: Optional[int]
+    symbol: Optional[str]
+    status: Optional[str]
+    clientOrderId: Optional[str]
+    price: Optional[str]
+    origQty: Optional[str]
+    executedQty: Optional[str]
+    timeInForce: Optional[str]
+    type: Optional[str]
+    side: Optional[str]
+    stopPrice: Optional[str]
+    selfTradePreventionMode: Optional[str]
+    time: Optional[int]
+    updateTime: Optional[int]
+    cummulativeQuoteQty: Optional[str]
+    icebergQty: Optional[str]
+    isWorking: Optional[bool]
+    isIsolated: Optional[bool]
 
 
 class AccountBalanceDict(TypedDict):
@@ -249,6 +273,21 @@ class TradeEntry:
 @dataclass
 @inject_fields(OrderDict)
 class Order:
+    @property
+    def quantity(self):
+        return float(self.origQty)
+
+    @property
+    def entry_price(self):
+        return float(self.price)
+
+    @property
+    def stop_price(self):
+        return float(self.stopPrice)
+
+@dataclass
+@inject_fields(MarginOrderDict)
+class MarginOrder:
     @property
     def quantity(self):
         return float(self.origQty)
@@ -483,14 +522,21 @@ class OrderControl:
     taker_rate = 0.0005
 
     def __post_init__(self):
-        self.orders: List[Order] = [Order(**x) for x in self.order_lists]
-        self.stats: OrderStats = OrderStats(self.maker_rate, self.taker_rate)
+        if self.positions:
+            self.orders: List[Order] = [Order(**x) for x in self.order_lists]
+            self.stats: OrderStats = OrderStats(self.maker_rate, self.taker_rate)
+        else:
+            self.orders:List[MarginOrder] = [MarginOrder(**x) for x in self.order_lists]
 
     def get_orders(self, kind: PositionKind, side: Literal["buy", "sell"]):
+        def condition(u):
+            if hasattr(u, "positionSide"):
+                return u.positionSide.lower() == kind
+            return True
         return [
             x
             for x in self.orders
-            if x.side.lower() == side and x.positionSide.lower() == kind
+            if x.side.lower() == side and condition(x)
         ]
 
     def get_open_orders(

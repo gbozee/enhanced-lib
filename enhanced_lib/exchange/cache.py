@@ -22,6 +22,7 @@ class ExchangeCache:
             self.symbol.upper()
         ]["payload"]["future"][self.symbol.lower()]
         self.config = self.get_future_config()
+        self.margin_info = None
 
     @property
     def future_instance(self):
@@ -104,15 +105,21 @@ class ExchangeCache:
     async def save(self, save=True):
         await self.account.fetch_latest(self.symbol, save=save)
 
-    async def fetch_latest(self, save=True):
-        await self.account.fetch_latest(self.symbol, save=save)
+    async def fetch_latest(self, save=True,margin=False):
+        await self.account.fetch_latest(self.symbol, save=save,margin=margin)
         self.exchange_info: ExchangeInfo = self.get_exchange_information()[
             self.symbol.upper()
         ]["payload"]["future"][self.symbol.lower()]
+        if margin:
+            self.margin_info = self.get_exchange_information()[self.symbol.upper()]['payload']['margin'][self.symbol.lower()]
 
     @property
     def open_orders(self):
         return OrderControl(self.exchange_info["open_orders"], positions=self.position)
+
+    @property
+    def margin_open_orders(self):
+        return OrderControl(self.margin_info["open_orders"],positions=None)
 
     @property
     def position(self):
