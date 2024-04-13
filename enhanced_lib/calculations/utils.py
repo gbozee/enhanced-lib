@@ -246,10 +246,11 @@ def get_decimal_places(number_string: str) -> int:
         return 0
 
 
-def extend_fibonacci(support:float, resistance:float, focus:float, kind='long',trend='long',places='%.1f',high=1,low=.382):
+def extend_fibonacci(support:float, resistance:float, focus=None, kind='long',trend='long',places='%.1f',high=1,low=0):
+    _focus = focus or resistance
     values = fibonacci_analysis(support,resistance,kind=kind,trend=trend,places=places)
-    remaining_buy_zones = [i for i in values if i <= focus]
-    remaining_sell_zones = [i for i in values if i >= focus]
+    remaining_buy_zones = [i for i in values if i <= _focus]
+    remaining_sell_zones = [i for i in values if i >= _focus]
     pairs = [
         {
             'fib':high,
