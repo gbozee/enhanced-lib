@@ -52,6 +52,10 @@ class ExchangeCache:
         value["kind"] = kind
         value["risk_reward"] = payload["risk_reward"]
         value["risk_per_trade"] = payload["risk_per_trade"]
+        if payload.get('min_size'):
+            value['min_size'] = payload.get('min_size')
+        if payload.get('minimum_size'):
+            value['minimum_size'] = payload.get('minimum_size')
         instance = Config(**value)
 
         return instance
