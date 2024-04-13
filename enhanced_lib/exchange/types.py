@@ -116,10 +116,10 @@ class OrderDict(TypedDict):
     goodTillDate: Optional[int]
     time: Optional[int]
     updateTime: Optional[int]
-    cummulativeQuoteQty: Optional[str]
-    icebergQty: Optional[str]
-    isWorking: Optional[bool]
-    isIsolated: Optional[bool]
+    # cummulativeQuoteQty: Optional[str]
+    # icebergQty: Optional[str]
+    # isWorking: Optional[bool]
+    # isIsolated: Optional[bool]
 
 class MarginOrderDict(TypedDict):
     orderId: Optional[int]
