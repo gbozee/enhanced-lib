@@ -610,6 +610,18 @@ class OrderControl:
                 return self.stats.close_orders(result, position)
         return result
 
+    def get_re_entry_order(self, kind:PositionKind):
+        position = getattr(self.positions, kind) if self.positions else None
+        if position and position.size > 0:
+            def condition(x):
+                if kind == 'long':
+                    return position.entry_price <= x.entry_price
+                return position.entry_price >= x.entry_price
+            orders = [x for x in self.get_open_orders(kind) if condition(x)]
+            if orders:
+                return orders[0]
+
+
 
 @dataclass
 @inject_fields(AccountBalanceDict)
