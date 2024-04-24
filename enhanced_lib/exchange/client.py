@@ -111,6 +111,7 @@ class UpdateMarginType(TypedDict):
     size: float
     take_profit: float
     kind: str
+    owner: str
 
 
 class AccountOrdersType(TypedDict):
@@ -704,7 +705,7 @@ class TradeClient:
 
     def update_margin_close_prices(self, params: UpdateMarginType):
         result = self.api_call(
-            "/api/signals/update-margin-close-prices",
+            "api/signals/update-margin-close-prices",
             "POST",
             {**params, "symbol": params.symbol.upper()},
         )
