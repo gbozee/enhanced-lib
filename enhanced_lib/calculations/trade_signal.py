@@ -549,6 +549,8 @@ class Signal:
                     if (z := determine_avg([{**y, "price": y["entry"]} for y in x]))  # noqa: F405
                     is not None
                 ]
+                if len(less_than_min_size) == len(total_orders):
+                    return total_orders
                 return greater_than_min_size + less_than_min_size
             return total_orders
 
