@@ -681,12 +681,15 @@ class TradeClient:
 
     def reduce_position(self, params):
         result = self.api_call(
-            "/api/signals/reduce-position",
+            "api/signals/reduce-position",
             "POST",
             {
                 "symbol": params["symbol"],
                 "kind": params["kind"],
-                "owner": "owner",
+                "owner": params['owner'],
+                "cancel": params.get("cancel"),
+                "close_price": params.get("close_price"),
+                'quantity': params.get('quantity')
             },
         )
         return result
@@ -952,7 +955,7 @@ class TradeClient:
             },
         )
         return result["data"]
-    
+
     def cancel_margin_new_trade(self, params: NewTradeType):
         result = self.api_call(
             f"api/{params['owner']}/margin-actions",
