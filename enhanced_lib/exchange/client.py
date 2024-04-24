@@ -18,6 +18,31 @@ class TradeActionParamType(TypedDict):
     trades: Dict[str, Any]
 
 
+class BorrowRepayParamType(TypedDict):
+    symbol: str
+    base: float
+    quote: str
+    owner: str
+
+
+class SyncBalanceType(TypedDict):
+    owner: str
+    symbol: str
+    base: float
+    quote: float
+    to: Literal["spot", "margin"]
+
+
+class NewTradeType(TypedDict):
+    symbol: str
+    owner: str
+    amount: float
+    price: float
+    increase: float
+    diff: float
+    decimal_places: str
+
+
 class ALLExchangeParamType(TypedDict):
     symbol: str
     exchanges: List[str]
@@ -40,6 +65,18 @@ class CandleStickParamType(TypedDict):
     ]
     count: int
     raw: bool
+
+
+class DepositParamType(TypedDict):
+    owner: str
+    amount: float
+
+
+class WithdrawParamType(TypedDict):
+    symbol: str
+    amount: float
+    invoice: str
+    owner: str
 
 
 class TradeSignalType(TypedDict):
@@ -637,6 +674,7 @@ class TradeClient:
                     }
                 },
                 "sub_accounts": params["sub_accounts"],
+                "fee_rate": params.get("fee_rate"),
             },
         )
         return result
@@ -832,4 +870,99 @@ class TradeClient:
         )
         return result["data"]
 
+    def lightning_withdraw(self, params: WithdrawParamType):
+        result = self.api_call(
+            f"api/{params['owner']}/withdraw",
+            "POST",
+            {
+                "btcAddress": params["invoice"],
+                "symbol": params["symbol"],
+                "amount": params["amount"],
+                "coin": "BTC",
+                "network": "LIGHTNING",
+                "to": "btc",
+            },
+        )
+        return result["data"]
+
+    def lightning_deposit(self, params: DepositParamType):
+        result = self.api_call(
+            f"api/{params['owner']}/deposit",
+            "POST",
+            {
+                "amount": params["amount"],
+            },
+        )
+        return result["data"]
+
+    def borrow_repay_margin(self, params: BorrowRepayParamType):
+        result = self.api_call(
+            f"api/{params['owner']}/margin-actions",
+            "POST",
+            {
+                "action": "borrow_repay",
+                "loan": {
+                    "base": params["base"],
+                    "quote": params["quote"],
+                },
+                "symbol": params["symbol"],
+            },
+        )
+        return result
+
+    def transfer_balance(self, params: SyncBalanceType):
+        spot_balance = {"base": 0, "quote": 0}
+        margin_balance = {"base": 0, "quote": 0}
+        if params["to"] == "margin":
+            margin_balance["base"] = params.get("base", 0)
+            margin_balance["quote"] = params.get("quote", 0)
+        else:
+            spot_balance["base"] = params.get("base", 0)
+            spot_balance["quote"] = params.get("quote", 0)
+
+        result = self.api_call(
+            f"api/{params['owner']}/margin-actions",
+            "POST",
+            {
+                "action": "balance_state",
+                "balances": {
+                    "spot": spot_balance,
+                    "margin": margin_balance,
+                },
+                "symbol": params["symbol"],
+            },
+        )
+        return result["data"]
+
+    def place_margin_new_trade(self, params: NewTradeType):
+        result = self.api_call(
+            f"api/{params['owner']}/margin-actions",
+            "POST",
+            {
+                "action": "place_order",
+                "order": {
+                    "cancel": False,
+                    "price": params["price"],
+                    "amount": params["amount"],
+                    "increase": params.get("increase", 50),
+                    "diff": params.get("diff", 0.00001),
+                    "decimal_places": params["decimal_places"],
+                },
+                "symbol": params["symbol"],
+            },
+        )
+        return result["data"]
     
+    def cancel_margin_new_trade(self, params: NewTradeType):
+        result = self.api_call(
+            f"api/{params['owner']}/margin-actions",
+            "POST",
+            {
+                "action": "place_order",
+                "order": {
+                    "cancel": True,
+                },
+                "symbol": params["symbol"],
+            },
+        )
+        return result["data"]

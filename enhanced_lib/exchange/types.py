@@ -1,8 +1,14 @@
 from dataclasses import dataclass
 from typing import List, Literal, Optional, TypedDict
 
-from ..calculations.utils import determine_pnl, get_decimal_places, to_f
+from ..calculations.utils import (
+    determine_pnl,
+    get_decimal_places,
+    to_f,
+    determine_close_price,
+)
 from ..calculations.hedge import determine_liquidation
+import statistics
 
 
 def inject_fields(parent):
@@ -86,30 +92,54 @@ class ProfileDict(TypedDict):
 
 
 class OrderDict(TypedDict):
-    orderId: int
-    symbol: str
-    status: str
-    clientOrderId: str
-    price: str
-    avgPrice: str
-    origQty: str
-    executedQty: str
-    cumQuote: str
-    timeInForce: str
-    type: str
-    reduceOnly: bool
-    closePosition: bool
-    side: str
-    positionSide: str
-    stopPrice: str
-    workingType: str
-    priceProtect: bool
-    origType: str
-    priceMatch: str
-    selfTradePreventionMode: str
-    goodTillDate: int
-    time: int
-    updateTime: int
+    orderId: Optional[int]
+    symbol: Optional[str]
+    status: Optional[str]
+    clientOrderId: Optional[str]
+    price: Optional[str]
+    avgPrice: Optional[str]
+    origQty: Optional[str]
+    executedQty: Optional[str]
+    cumQuote: Optional[str]
+    timeInForce: Optional[str]
+    type: Optional[str]
+    reduceOnly: Optional[bool]
+    closePosition: Optional[bool]
+    side: Optional[str]
+    positionSide: Optional[str]
+    stopPrice: Optional[str]
+    workingType: Optional[str]
+    priceProtect: Optional[bool]
+    origType: Optional[str]
+    priceMatch: Optional[str]
+    selfTradePreventionMode: Optional[str]
+    goodTillDate: Optional[int]
+    time: Optional[int]
+    updateTime: Optional[int]
+    # cummulativeQuoteQty: Optional[str]
+    # icebergQty: Optional[str]
+    # isWorking: Optional[bool]
+    # isIsolated: Optional[bool]
+
+class MarginOrderDict(TypedDict):
+    orderId: Optional[int]
+    symbol: Optional[str]
+    status: Optional[str]
+    clientOrderId: Optional[str]
+    price: Optional[str]
+    origQty: Optional[str]
+    executedQty: Optional[str]
+    timeInForce: Optional[str]
+    type: Optional[str]
+    side: Optional[str]
+    stopPrice: Optional[str]
+    selfTradePreventionMode: Optional[str]
+    time: Optional[int]
+    updateTime: Optional[int]
+    cummulativeQuoteQty: Optional[str]
+    icebergQty: Optional[str]
+    isWorking: Optional[bool]
+    isIsolated: Optional[bool]
 
 
 class AccountBalanceDict(TypedDict):
@@ -255,10 +285,27 @@ class Order:
     def stop_price(self):
         return float(self.stopPrice)
 
+@dataclass
+@inject_fields(MarginOrderDict)
+class MarginOrder:
+    @property
+    def quantity(self):
+        return float(self.origQty)
+
+    @property
+    def entry_price(self):
+        return float(self.price)
+
+    @property
+    def stop_price(self):
+        return float(self.stopPrice)
+
 
 @dataclass
 @inject_fields(PositionDict)
 class PositionKlass:
+    fee_rate = 0.018
+
     @property
     def size(self):
         return abs(self.positionAmt)
@@ -270,6 +317,22 @@ class PositionKlass:
     @property
     def kind(self) -> PositionKind:
         return self.positionSide.lower()
+
+    def determine_pnl(self, current_price: float):
+        return determine_pnl(
+            self.entry_price,
+            current_price,
+            self.size,
+            kind=self.kind,
+        )
+
+    def determine_minimum_pnl(self, fee_percent):
+        notional_value = self.entry_price * self.size
+        value = notional_value * self.fee_rate / 100
+        return value / fee_percent
+
+    def determine_close_price(self, pnl: float):
+        return determine_close_price(self.entry_price, pnl, self.size, kind=self.kind)
 
 
 @dataclass
@@ -371,13 +434,18 @@ class OrderStats:
             "loss": to_f(
                 determine_pnl(avg_entry, last_order, size, kind=position.kind),
                 f"%.{places}f",
-            ) if last_order else 0,
+            )
+            if last_order
+            else 0,
         }
 
     def close_orders(
-        self, orders: List[Order], position: PositionKlass
+        self,
+        orders: List[Order],
+        position: PositionKlass,
+        opposite_result: Optional[List[Order]] = None,
     ) -> CloseOrderStat:
-        def get_key(_key='entry_price'):
+        def get_key(_key="entry_price"):
             if position:
                 return position.entry_price
             return orders[0].price if orders else 0
@@ -395,11 +463,30 @@ class OrderStats:
         else:
             ratio = 1
         fee_rate = self.maker if orders[0].stop_price == 0 else self.taker
+        working_orders = orders
+        if opposite_result:
+            if (
+                position.kind == "long"
+                and opposite_result[0].entry_price < orders[0].entry_price
+            ):
+                if opposite_result[0].entry_price > position.entry_price:
+                    working_orders = opposite_result[:1]
+            if (
+                position.kind == "short"
+                and opposite_result[0].entry_price > orders[0].entry_price
+            ):
+                if opposite_result[0].entry_price < position.entry_price:
+                    working_orders = opposite_result[:1]
         return {
+            "position": {"entry": position.entry_price, "size": position.size},
+            "tp": {
+                "entry": statistics.mean([x.entry_price for x in working_orders]),
+                "size": statistics.mean([x.quantity for x in working_orders]),
+            },
             "pnl": to_f(pnl * ratio, f"%.{places}f"),
             "remaining_size": to_f((1 - ratio) * position.size, f"%.{decimal_places}f"),
             "fees": to_f(
-                (orders[0].entry_price * orders[0].quantity) * fee_rate,
+                (working_orders[0].entry_price * working_orders[0].quantity) * fee_rate,
                 f"%.{decimal_places}f",
             ),
         }
@@ -435,14 +522,21 @@ class OrderControl:
     taker_rate = 0.0005
 
     def __post_init__(self):
-        self.orders: List[Order] = [Order(**x) for x in self.order_lists]
-        self.stats: OrderStats = OrderStats(self.maker_rate, self.taker_rate)
+        if self.positions:
+            self.orders: List[Order] = [Order(**x) for x in self.order_lists]
+            self.stats: OrderStats = OrderStats(self.maker_rate, self.taker_rate)
+        else:
+            self.orders:List[MarginOrder] = [MarginOrder(**x) for x in self.order_lists]
 
     def get_orders(self, kind: PositionKind, side: Literal["buy", "sell"]):
+        def condition(u):
+            if hasattr(u, "positionSide"):
+                return u.positionSide.lower() == kind
+            return True
         return [
             x
             for x in self.orders
-            if x.side.lower() == side and x.positionSide.lower() == kind
+            if x.side.lower() == side and condition(x)
         ]
 
     def get_open_orders(
@@ -467,21 +561,36 @@ class OrderControl:
             return self.stats.open_orders(result, position, balance)
         return result
 
-    def get_tp_orders(self, kind: PositionKind, stats=False):
+    def get_tp_orders(self, kind: PositionKind, stats=False, eager=True):
         side = {
             "long": "sell",
             "short": "buy",
         }
         result = [x for x in self.get_orders(kind, side[kind]) if x.stop_price == 0]
+        opposite_kind = "long" if kind == "short" else "short"
+        opposite_side = "sell" if opposite_kind == "short" else "buy"
+        opposite_result = [
+            x
+            for x in self.get_orders(opposite_kind, opposite_side)
+            if x.stop_price == 0
+        ]
         if stats and result:
             position: Optional[PositionKlass] = (
                 getattr(self.positions, kind) if self.positions else None
             )
             if position:
                 result = sorted(result, key=lambda x: x.entry_price)
+                opposite_result = sorted(
+                    opposite_result, key=lambda x: x.entry_price, reverse=True
+                )
                 if kind == "long":
                     result = sorted(result, key=lambda x: x.entry_price, reverse=True)
-                return self.stats.close_orders(result, position)
+                    opposite_result = sorted(
+                        opposite_result, key=lambda x: x.entry_price
+                    )
+                return self.stats.close_orders(
+                    result, position, opposite_result=opposite_result if eager else None
+                )
         return result
 
     def get_sl_orders(self, kind: PositionKind, stats=False):
@@ -500,6 +609,18 @@ class OrderControl:
                     result = sorted(result, key=lambda x: x.entry_price, reverse=True)
                 return self.stats.close_orders(result, position)
         return result
+
+    def get_re_entry_order(self, kind:PositionKind):
+        position = getattr(self.positions, kind) if self.positions else None
+        if position and position.size > 0:
+            def condition(x):
+                if kind == 'long':
+                    return position.entry_price <= x.entry_price
+                return position.entry_price >= x.entry_price
+            orders = [x for x in self.get_open_orders(kind) if condition(x)]
+            if orders:
+                return orders[0]
+
 
 
 @dataclass

@@ -1,3 +1,4 @@
+import numpy as np
 from dataclasses import dataclass
 import math
 from typing import Iterable, List, Optional, Tuple
@@ -554,6 +555,8 @@ class Signal:
                     )  # noqa: F405
                     is not None
                 ]
+                if len(less_than_min_size) == len(total_orders):
+                    return total_orders
                 return greater_than_min_size + less_than_min_size
             return total_orders
 

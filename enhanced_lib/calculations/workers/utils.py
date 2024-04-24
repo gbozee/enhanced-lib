@@ -39,7 +39,7 @@ def run_in_parallel(
     ignore=False,
 ):
     if ignore:
-        return [func(x, y) for x, y in args]
+        return [func(*x) for x in args]
     with multiprocessing.Pool(processes=no_of_cpu) as p:
         return p.starmap(func, args)
 

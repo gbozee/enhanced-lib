@@ -22,21 +22,43 @@ class ExchangeCache:
             self.symbol.upper()
         ]["payload"]["future"][self.symbol.lower()]
         self.config = self.get_future_config()
+        self.margin_info = None
 
     @property
     def future_instance(self):
         return FutureInstance(self.get_future_config())
 
-    def get_future_config(self):
+    def get_future_config(self, additional=None):
+        # additional is to be used when you want to update the config
         config = self.account.general_config.get("config") or {}
         if not config:
             config[self.symbol.upper()] = {}
         value = config[self.symbol.upper()]
+        if additional:
+            value.update(additional)
         instance = Config(**value)
         if value.get("min_size"):
             instance.minimum_size = value.get("min_size")
         instance.use_fibonacci = True
         instance.use_default = False
+        return instance
+
+    def build_custom_config(self, payload, kind):
+        config = self.account.general_config.get("config") or {}
+        if not config:
+            config[self.symbol.upper()] = {}
+        value = config[self.symbol.upper()]
+        value["entry"] = payload["entry"]
+        value["stop"] = payload["stop"]
+        value["kind"] = kind
+        value["risk_reward"] = payload["risk_reward"]
+        value["risk_per_trade"] = payload["risk_per_trade"]
+        if payload.get('min_size'):
+            value['min_size'] = payload.get('min_size')
+        if payload.get('minimum_size'):
+            value['minimum_size'] = payload.get('minimum_size')
+        instance = Config(**value)
+
         return instance
 
     def get_exchange_information(self):
@@ -58,9 +80,22 @@ class ExchangeCache:
             }
         payload = instance["payload"]
         if not payload:
-            result[self.symbol.upper()]["payload"]["future"] = {
-                self.symbol.lower(): {},
+            value = {
+                self.symbol.upper():{
+                    "payload": {
+                        "future": {
+                            self.symbol.lower(): {},
+                        }
+                    }
+                }
             }
+            if self.symbol.upper() not in result or 'payload' not in result[self.symbol.upper()] or not result[self.symbol.upper()]['payload']:
+                result.update(value)
+            else:
+                result[self.symbol.upper()]["payload"]["future"] = {
+                    self.symbol.lower(): {},
+                }
+            payload = {'future':{self.symbol.lower():{}}} if not payload else payload
         future = payload["future"]
         if not future:
             result[self.symbol.upper()]["payload"]["future"][self.symbol.lower()] = {}
@@ -70,15 +105,21 @@ class ExchangeCache:
     async def save(self, save=True):
         await self.account.fetch_latest(self.symbol, save=save)
 
-    async def fetch_latest(self, save=True):
-        await self.account.fetch_latest(self.symbol, save=save)
+    async def fetch_latest(self, save=True,margin=False):
+        await self.account.fetch_latest(self.symbol, save=save,margin=margin)
         self.exchange_info: ExchangeInfo = self.get_exchange_information()[
             self.symbol.upper()
         ]["payload"]["future"][self.symbol.lower()]
+        if margin:
+            self.margin_info = self.get_exchange_information()[self.symbol.upper()]['payload']['margin'][self.symbol.lower()]
 
     @property
     def open_orders(self):
         return OrderControl(self.exchange_info["open_orders"], positions=self.position)
+
+    @property
+    def margin_open_orders(self):
+        return OrderControl(self.margin_info["open_orders"],positions=None)
 
     @property
     def position(self):
@@ -261,14 +302,14 @@ class ExchangeCache:
 
         # return result
 
-    def get_calculations_for_kind(self, no_of_cpu=6, strategy="entry", kind="long"):
+    def get_calculations_for_kind(self, no_of_cpu=6, strategy="entry", kind="long",daemon=False):
         zones = [
             {"entry": x["entry"], "stop": x["stop"]}
             for x in self.future_instance.trade_entries
         ]
         config = self.future_instance.config
         # use entry strategy because quantity causes errors
-        config.strategy = 'quantity' if self.config.max_size > 0.2 else 'entry'
+        config.strategy = "quantity" if self.config.max_size > 0.2 else "entry"
         # config.strategy = strategy
         # results = run_in_threads(
         #     lambda x: config.determine_optimum_risk(
@@ -288,6 +329,7 @@ class ExchangeCache:
                 max_size=self.config.max_size,
                 gap=self.config.gap,
                 no_of_cpu=no_of_cpu,
+                ignore=daemon
             ),
             zones,
         )
@@ -315,6 +357,73 @@ class ExchangeCache:
 
     async def get_trades(self):
         return await self.account.get_trades(self.symbol)
+
+    def build_trade_zones(self, trades={}, kind="long",fee_percent=.06):
+        fee_value = self.account.general_config['config'][self.symbol].get('fee_percent',fee_percent)
+        long_trades = trades.get("long", [])
+        short_trades = trades.get("short", [])
+        intermediate = []
+        position = self.position.long if kind == "long" else self.position.short
+        minimum = position.determine_minimum_pnl(fee_value)
+        print('minimum',minimum,'fee_value',fee_value)
+        # if long_trades and not short_trades:
+        #     intermediate = [
+        #         {**x, "entry": x["stop"], "stop": x["entry"]} for x in long_trades
+        #     ]
+        # if short_trades and not long_trades:
+        #     intermediate = [
+        #         {**x, "entry": x["stop"], "stop": x["entry"]} for x in short_trades
+        #     ]
+        # if intermediate:
+        #     if not long_trades:
+        #         long_trades = intermediate
+        #     if not short_trades:
+        #         short_trades = intermediate
+
+        # t = long_trades if kind == "long" else short_trades
+
+        # def condition(x):
+        #     if position.kind == "long":
+        #         return x["entry"] >= position.entry_price
+        #     return x["entry"] <= position.entry_price
+
+        # result = [
+        #     {
+        #         **x,
+        #         # "trades": build_trades(self, x, kind),
+        #         "trades": [y["entry"] for y in build_trades(self, x, kind)],
+        #     }
+        #     for x in t
+        #     if condition(x)
+        # ]
+        # # combined_trades = result
+        # combined_trades = [z for y in [x["trades"] for x in result] for z in y]
+        # combined_trades = [
+        #     {"price": x, "pnl": position.determine_pnl(x)} for x in combined_trades
+        # ]
+        # combined_trades = [x for x in combined_trades if x["pnl"] >= minimum]
+        # if combined_trades:
+        #     return min(combined_trades, key=lambda x: x["pnl"])
+        close_price = position.determine_close_price(minimum)
+        return {
+            'price':close_price,
+            'pnl':minimum
+        }
+    async def update_support_resistance(self, support=None, resistance=None):
+        """New function to update support and resistance"""
+        payload = {}
+        if support:
+            payload["support"] = support
+        if resistance:
+            payload["resistance"] = resistance
+        await self.account.update_config_fields(self.symbol, payload)
+
+
+def build_trades(klass: ExchangeCache, payload, kind):
+    config = klass.build_custom_config(payload, kind)
+    config.strategy = 'entry'
+    result = config.build_trades()
+    return result["result"]
 
 
 class ProcessedParams:

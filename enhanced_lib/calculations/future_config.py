@@ -274,6 +274,9 @@ class Config:
     zone_split: Optional[int] = None
     minimum_size: Optional[float] = None
     strategy: Optional[Literal["quantity", "entry"]] = "quantity"
+    derived: Optional[Any] = None
+    fee_percent: Optional[float] = 0.0006
+    
 
     def as_dict(self):
         fields = shared.AppConfig.get_all_fields()
@@ -331,6 +334,11 @@ class Config:
             with_trades=with_trades,
             ignore=ignore,
         )
+
+    def build_trades(self):
+        """Build out the trades based off the config"""
+
+        return workers.eval_func(self.risk_reward, self.app_config)
 
     def get_trading_zones(self, kind: Literal["long", "short"]):
         """This is the main function that will be used to determine the trading zone based

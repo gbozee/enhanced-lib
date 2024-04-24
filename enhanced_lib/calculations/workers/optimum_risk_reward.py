@@ -149,6 +149,7 @@ def determine_optimum_reward(
                     highest = max(highest, j["entry"])
                 else:
                     highest = min(highest, j["entry"]) if highest > 0 else j["entry"]
+    old_func = [x for x in func]
     func = new_func
     key = "max" if criterion == "quantity" else "entry"
     index = find_index_by_condition(func, lambda x: x[key] == highest)
@@ -157,6 +158,7 @@ def determine_optimum_reward(
             return func[index]
         return func[index].get("value")
     print("func", func)
+    print('old_func',old_func)
     print("highest", highest)
     print("index", index)
     raise Exception("No optimum reward found for ", app_config.risk_per_trade)
@@ -224,20 +226,20 @@ def group_in_pairs(array, pairs=2):
 
 
 def single_worker_on_array(
-    app_config: AppConfig, risk_rewards: typing.List[float], no_of_cpu=4
+    app_config: AppConfig, risk_rewards: typing.List[float], no_of_cpu=4,ignore=False
 ):
-    return [size_resolver(x, app_config, no_of_cpu=no_of_cpu) for x in risk_rewards]
+    return [size_resolver(x, app_config, no_of_cpu=no_of_cpu,ignore=ignore) for x in risk_rewards]
 
 
 def spawn_workers_on_array(
-    app_config: AppConfig, risk_rewards: typing.List[float], no_of_cpu=4
+    app_config: AppConfig, risk_rewards: typing.List[float], no_of_cpu=4,ignore=False
 ):
-    pairs = math.ceil(len(risk_rewards) / 4)
+    pairs = math.ceil(len(risk_rewards) / no_of_cpu)
     arrayPairs = group_in_pairs(risk_rewards, pairs)
     result = run_in_parallel(
         single_worker_on_array,
-        [(app_config, x) for x in arrayPairs],
-        no_of_cpu=no_of_cpu,
+        [(app_config, x,no_of_cpu,ignore) for x in arrayPairs],
+        no_of_cpu=no_of_cpu,ignore=ignore
     )
     result = [item for sublist in result for item in sublist]
     return result
@@ -262,12 +264,13 @@ def batch_resolver_generator(
     gap=1,
     batchSize=10,
     no_of_cpu=4,
+    ignore=False
 ):
     first_value = app_config.risk_per_trade
     start = 0
     while True:
         first_batch = create_array(first_value, first_value + (batchSize * gap), gap)
-        result = spawn_workers_on_array(app_config, first_batch, no_of_cpu=no_of_cpu)
+        result = spawn_workers_on_array(app_config, first_batch, no_of_cpu=no_of_cpu,ignore=ignore)
         all_less_than_max = all([x["size"] <= max_size for x in result])
         if all_less_than_max:
             yield get_highest_value(result)
@@ -288,11 +291,12 @@ def consume_batch_generator(
     gap=1,
     batchSize=10,
     no_of_cpu=4,
+    ignore=False
 ):
     highest = None
     highest_arr = []
     for r in batch_resolver_generator(
-        app_config, max_size, gap=gap, batchSize=batchSize, no_of_cpu=no_of_cpu
+        app_config, max_size, gap=gap, batchSize=batchSize, no_of_cpu=no_of_cpu,ignore=ignore
     ):
         # highest = r
         highest_arr.append(r)
@@ -312,7 +316,7 @@ def determine_optimum_risk(
     ignore=False,
 ) -> typing.Optional[RiskType]:
     return consume_batch_generator(
-        app_config, max_size, gap=gap, batchSize=multiplier, no_of_cpu=no_of_cpu
+        app_config, max_size, gap=gap, batchSize=multiplier, no_of_cpu=no_of_cpu,ignore=ignore
     )
     start_index = 0
     # highest = {
