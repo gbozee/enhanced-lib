@@ -699,7 +699,7 @@ class TradeClient:
         result = self.api_call(
             "/api/signals/place-margin-order",
             "POST",
-            {**params, "symbol": params.symbol.upper()},
+            {**params, "symbol": params['symbol'].upper()},
         )
         return result
 
@@ -707,7 +707,7 @@ class TradeClient:
         result = self.api_call(
             "api/signals/update-margin-close-prices",
             "POST",
-            {**params, "symbol": params.symbol.upper()},
+            {**params, "symbol": params['symbol'].upper()},
         )
         return result
 
