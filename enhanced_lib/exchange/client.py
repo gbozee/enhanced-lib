@@ -674,6 +674,7 @@ class TradeClient:
                         params["symbol"].upper(): params["orders"],
                     }
                 },
+                'reduce': params.get('reduce'),
                 "sub_accounts": params["sub_accounts"],
                 "fee_rate": params.get("fee_rate"),
             },

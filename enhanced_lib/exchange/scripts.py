@@ -25,7 +25,7 @@ async def run(account, symbol, url):
     await exchange.get_trades()
 
 
-async def main(symbol,  accounts, host='https://app-dev.beeola.me'):
+async def main(symbol,  accounts, host='http://localhost:8000'):
     for account in accounts:
         if isinstance(symbol, list):
             for s in symbol:
@@ -35,13 +35,13 @@ async def main(symbol,  accounts, host='https://app-dev.beeola.me'):
         print(f"Completed {account}")
 
 
-async def get_exchange(account, symbol, host='https://app-dev.beeola.me'):
+async def get_exchange(account, symbol, host='http://localhost:8000'):
     db = Database(host)
     exchange = await db.get_initialized_exchange(account, symbol, account, True)
     return exchange
 
 
-async def update_support_and_resistance(accounts, symbol, payload, host='https://app-dev.beeola.me'):
+async def update_support_and_resistance(accounts, symbol, payload, host='http://localhost:8000'):
     for account in accounts:
         exchange = await get_exchange(account, symbol, host)
         await exchange.account.update_config_fields(exchange.symbol, payload)
