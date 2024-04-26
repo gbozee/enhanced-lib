@@ -791,6 +791,7 @@ class TradeClient:
                 "symbol": params["symbol"],
                 "owner": params["owner"],
                 "orders": params["order_ids"],
+                'market_type': params.get('market_type')
             },
         )
         print(result, "here")
