@@ -977,3 +977,29 @@ class TradeClient:
             },
         )
         return result["data"]
+
+    def get_open_orders(self, params):
+        result = self.api_call(
+            f"api/{params['owner']}/remote-actions",
+            "POST",
+            {
+                "action": "get_open_orders",
+                "symbol": params["symbol"],
+                "name": "get_open_orders",
+                "params": {"args": [], "kwargs": {}},
+            },
+        )
+        return result["data"]
+
+    def get_current_positions(self, params):
+        result = self.api_call(
+            f"api/{params['owner']}/remote-actions",
+            "POST",
+            {
+                "action": "get_position",
+                "symbol": params["symbol"],
+                "name": "get_position",
+                "params": {"args": [], "kwargs": {"skip": True}},
+            },
+        )
+        return result["data"]
