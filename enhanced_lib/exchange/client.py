@@ -674,7 +674,7 @@ class TradeClient:
                         params["symbol"].upper(): params["orders"],
                     }
                 },
-                'reduce': params.get('reduce'),
+                "reduce": params.get("reduce"),
                 "sub_accounts": params["sub_accounts"],
                 "fee_rate": params.get("fee_rate"),
             },
@@ -688,10 +688,10 @@ class TradeClient:
             {
                 "symbol": params["symbol"],
                 "kind": params["kind"],
-                "owner": params['owner'],
+                "owner": params["owner"],
                 "cancel": params.get("cancel"),
                 "close_price": params.get("close_price"),
-                'quantity': params.get('quantity')
+                "quantity": params.get("quantity"),
             },
         )
         return result
@@ -700,7 +700,7 @@ class TradeClient:
         result = self.api_call(
             "/api/signals/place-margin-order",
             "POST",
-            {**params, "symbol": params['symbol'].upper()},
+            {**params, "symbol": params["symbol"].upper()},
         )
         return result
 
@@ -708,7 +708,7 @@ class TradeClient:
         result = self.api_call(
             "api/signals/update-margin-close-prices",
             "POST",
-            {**params, "symbol": params['symbol'].upper()},
+            {**params, "symbol": params["symbol"].upper()},
         )
         return result
 
@@ -791,7 +791,7 @@ class TradeClient:
                 "symbol": params["symbol"],
                 "owner": params["owner"],
                 "orders": params["order_ids"],
-                'market_type': params.get('market_type')
+                "market_type": params.get("market_type"),
             },
         )
         print(result, "here")
@@ -954,9 +954,14 @@ class TradeClient:
                     "diff": params.get("diff", 0.00001),
                     "decimal_places": params["decimal_places"],
                 },
+                "type": params.get("type"),
                 "symbol": params["symbol"],
             },
         )
+        return result["data"]
+
+    def get_delivery_symbols(self, params):
+        result = self.api_call("api/get-delivery-symbols", "GET", {})
         return result["data"]
 
     def cancel_margin_new_trade(self, params: NewTradeType):
