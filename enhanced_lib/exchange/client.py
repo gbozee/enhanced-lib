@@ -1003,3 +1003,16 @@ class TradeClient:
             },
         )
         return result["data"]
+
+    def last_closed_order(self, params: OpenOrderType):
+        result = self.api_call(
+            f"api/{params['owner']}/remote-actions",
+            "POST",
+            {
+                "action": "last_closed_order",
+                "symbol": params["symbol"],
+                "name": "last_closed_orders",
+                "params": {"args": [], "kwargs": {"entry": True}},
+            },
+        )
+        return result['data']
