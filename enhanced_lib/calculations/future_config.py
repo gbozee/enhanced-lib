@@ -337,7 +337,6 @@ class Config:
 
     def build_trades(self):
         """Build out the trades based off the config"""
-
         return workers.eval_func(self.risk_reward, self.app_config)
 
     def get_trading_zones(self, kind: Literal["long", "short"]):

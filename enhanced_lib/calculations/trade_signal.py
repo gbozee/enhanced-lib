@@ -983,12 +983,12 @@ class Signal:
             # print('difference', difference,'risk_reward', self.risk_reward)
             spread = to_f(difference / self.risk_reward)
             entries = [
-                to_f(margin_range[1] - (spread * x))
+                to_f(margin_range[1] - (spread * x),self.price_places)
                 for x in range(int(self.risk_reward) + 1)
             ]
             if kind == "short":
                 entries = [
-                    to_f(margin_range[1] * math.pow(1 + (percent_change), x))
+                    to_f(margin_range[1] * math.pow(1 + (percent_change), x),self.price_places)
                     for x in range(int(self.risk_reward) + 1)
                 ]
             # print('entries', entries)
@@ -1005,25 +1005,25 @@ class Signal:
                     new_range = self.to_f(new_range)
                     while len(entries) < int(self.risk_reward) + 1:
                         if kind == "long":
-                            value = to_f(new_range - (spread * x))
+                            value = to_f(new_range - (spread * x),self.price_places)
                             if value <= self.to_f(current_price):
                                 entries.append(value)
                         else:
-                            value = to_f(new_range * math.pow(1 + (percent_change), x))
+                            value = to_f(new_range * math.pow(1 + (percent_change), x),self.price_places)
                             if value >= self.to_f(current_price):
                                 entries.append(value)
                         x += 1
-            if len(remaining_zones) == 0 and to_f(current_price) <= min(entries):
+            if len(remaining_zones) == 0 and to_f(current_price,self.price_places) <= min(entries):
                 next_focus = margin_range[0] * math.pow(1 + self.percent_change, -1)
                 entries = []
                 x = 0
                 while len(entries) < int(self.risk_reward) + 1:
                     if kind == "long":
-                        value = to_f(next_focus - (spread * x))
+                        value = to_f(next_focus - (spread * x),self.price_places)
                         if value <= self.to_f(current_price):
                             entries.append(value)
                     else:
-                        value = to_f(next_focus * math.pow(1 + (percent_change), x))
+                        value = to_f(next_focus * math.pow(1 + (percent_change), x),self.price_places)
                         if value >= self.to_f(current_price):
                             entries.append(value)
                     x += 1
