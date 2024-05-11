@@ -1015,4 +1015,17 @@ class TradeClient:
                 "params": {"args": [], "kwargs": {"entry": True}},
             },
         )
-        return result['data']
+        return result["data"]
+
+    def cross_transfer(self, params):
+        result = self.api_call(
+            f"api/cross-transfer",
+            "POST",
+            {
+                "amount": params["amount"],
+                "asset": params["asset"],
+                "from": {"owner": params["owner"], "wallet": params["from"]},
+                "to": {"owner": params["owner"], "wallet": params["to"]},
+            },
+        )
+        return result["data"]
