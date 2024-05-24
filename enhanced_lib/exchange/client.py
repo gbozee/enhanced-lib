@@ -167,6 +167,11 @@ class OpenOrderType(TypedDict):
     owner: str
 
 
+class NotifyType(TypedDict):
+    message: str
+    owner: str
+
+
 class RunProfileType(TypedDict):
     symbol: str
     owner: str
@@ -1029,3 +1034,11 @@ class TradeClient:
             },
         )
         return result["data"]
+
+    def notify_by_telegram(self, params: NotifyType):
+        result = self.api_call(
+            "api/send-notification/telegram",
+            "POST",
+            {"message": params["message"], "owner": params["owner"]},
+        )
+        return result
