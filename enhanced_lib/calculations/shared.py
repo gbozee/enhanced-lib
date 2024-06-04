@@ -183,14 +183,14 @@ def build_avg(
 
 
 def compute_total_average_for_each_trade(
-    app_config: AppConfig, trades: List[TradeInstanceType], current_qty=0
+    app_config: AppConfig, trades: List[TradeInstanceType], current_qty=0,_current_entry=0
 ):
     take_profit = (
         max(app_config.entry, app_config.stop)
         if app_config.kind == "long"
         else min(app_config.entry, app_config.stop)
     )
-    current_entry = app_config.currentEntry
+    current_entry = _current_entry or app_config.currentEntry
     kind = app_config.kind
 
     def kindCondition(x, v=None, operand=None, operand_reverse=None):
@@ -237,6 +237,7 @@ def compute_total_average_for_each_trade(
         )
         _pnl = x.get("pnl")
         sell_price = x["sell_price"]
+        loss = 0
         if take_profit:
             _pnl = determine_pnl(
                 avg_entry["price"],
@@ -245,11 +246,13 @@ def compute_total_average_for_each_trade(
                 kind=kind,
             )
             sell_price = take_profit
+            loss = determine_pnl(avg_entry['price'],x.get('stop'),avg_entry['quantity'],kind=kind)
         return {
             **x,
             "avg_entry": avg_entry["price"],
             "avg_size": avg_entry["quantity"],
             "pnl": to_f(_pnl, app_config.decimal_places),
+            'neg.pnl': to_f(loss, app_config.decimal_places),
             "sell_price": sell_price,
             "start_entry": current_entry,
         }

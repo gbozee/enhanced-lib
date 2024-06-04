@@ -719,6 +719,7 @@ class Signal:
                 "increase_size",
                 "increase_position",
                 "minimum_size",
+                'fee'
             ]
         }
         return config
@@ -1086,7 +1087,6 @@ class Signal:
         # if optimum:
         #     breakpoint()
         result = instance.get_bulk_trade_zones(_entry_price, kind=kind) or []
-
         def best_transform(x):
             if kind == "long":
                 return x["entry"] > x["stop"] + 0.5
