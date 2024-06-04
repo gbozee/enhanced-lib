@@ -587,7 +587,8 @@ def compute_possible_entries(
     _max_size=0.15,
     switch_to_entry=5,
     raw=False,
-    with_trades=False
+    with_trades=False,
+    spread=5
 ):
     result = []
     max_size = _max_size
@@ -669,7 +670,7 @@ def compute_possible_entries(
             stop_price = buy_price
             buy_price = max(payload["entry"], payload["stop"])
             # buy_price = stop_price
-        if abs(buy_price - stop_price) < .9:
+        if abs(buy_price - stop_price) < spread:
             result.pop()
             break
         if kind == "long" and loss < 1:
