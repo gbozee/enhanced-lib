@@ -102,6 +102,7 @@ def determine_position_size(
         stop_percent = percent
     if stop_percent and budget:
         size = budget / stop_percent
+        print(size)
         if as_coin:
             size = size / entry
             if min_size and min_size == 1:
