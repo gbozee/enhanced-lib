@@ -53,7 +53,7 @@ class ExchangeCache:
         value["entry"] = payload["entry"]
         value["stop"] = payload["stop"]
         value["kind"] = kind
-        if payload.get('risk_reward'):
+        if payload.get("risk_reward"):
             value["risk_reward"] = payload["risk_reward"]
         if payload.get("risk_per_trade"):
             value["risk_per_trade"] = payload["risk_per_trade"]
@@ -499,7 +499,6 @@ def compute_risk_rewards(
                     print(e)
                 new_risk += 5
                 counter += 1
-
             return {
                 "risk_reward": risk_reward,
                 "risk_per_trade": new_risk,
@@ -541,7 +540,6 @@ def compute_risk_rewards(
     else:
         risk_reward = 25
         new_risk = 40
-
     return {
         "risk_reward": risk_reward,
         "risk_per_trade": new_risk,
@@ -611,6 +609,7 @@ def compute_possible_entries(
         pp = compute_risk_rewards(
             client,
             {
+                **payload,
                 "entry": buy_price,
                 "stop": stop_price,
                 "risk_per_trade": remaining_profit,
@@ -650,6 +649,21 @@ def compute_possible_entries(
             opposite = True
 
         if loss > remaining_profit:
+            if not result:
+                item_to_add = {
+                    "entry": buy_price,
+                    "stop": stop_price,
+                    "risk_per_trade": remaining_profit,
+                    "loss": loss,
+                    "pnl": rr[0]["pnl"],
+                    "%": to_f(rr[0]["pnl"] / loss, "%.2f"),
+                    "no_of_trades": len(rr),
+                    "risk_reward_v": risk_reward,
+                    "max_size": max_size,
+                }
+                if with_trades:
+                    item_to_add["trades"] = rr
+                result.append(item_to_add)
             break
         item_to_add = {
             "entry": buy_price,
@@ -688,35 +702,40 @@ def compute_possible_entries(
         print("remaining_profit", remaining_profit)
         print({"entry": buy_price, "stop": stop_price})
     print("remaining_profit", remaining_profit)
-    return parse_trades(client,result, kind)
+    if result:
+        return parse_trades(client, payload, result, kind)
+    return result
 
 
-def parse_trades(client:ExchangeCache,results, kind):
+def parse_trades(client: ExchangeCache, pp, results, kind):
     first_entry = results[0]
     remaining = results[1:]
     solutions = [first_entry]
     if remaining:
         if kind == "long":
+            bb_entry = max(pp["entry"], pp["stop"])
             entry = max([x["entry"] for x in remaining])
             stop = min([x["stop"] for x in remaining])
         else:
+            bb_entry = min(pp["entry"], pp["stop"])
             entry = min([x["entry"] for x in remaining])
             stop = max([x["stop"] for x in remaining])
         risk = sum([x["loss"] for x in remaining])
         payload = {
             **remaining[0],
-            "entry": entry,
+            "entry": bb_entry,
+            # "entry": entry,
             "stop": stop,
             "risk_per_trade": risk,
             "loss": risk,
             "trades": [],
-            'risk_reward': 100,
+            "risk_reward": 100,
         }
-        risk_reward,tt,max_size = get_risk_reward(client,payload,kind,'entry')
-        payload['risk_reward_v'] = risk_reward
-        payload['no_of_trades'] = len(tt)
-        payload['max_size'] = max_size
-        payload['trades'] = tt
+        risk_reward, tt, max_size = get_risk_reward(client, payload, kind, "entry")
+        payload["risk_reward_v"] = risk_reward
+        payload["no_of_trades"] = len(tt)
+        payload["max_size"] = max_size
+        payload["trades"] = tt
         solutions.append(payload)
 
     return solutions
