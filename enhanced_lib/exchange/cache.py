@@ -586,7 +586,7 @@ def compute_possible_entries(
     kind="short",
     _max_size=0.15,
     switch_to_entry=5,
-    minimum_loss=1,
+    minimum_loss=.5,
     raw=False,
     with_trades=False,
     spread=5
