@@ -461,7 +461,7 @@ def compute_risk_rewards(
     strategy="quantity",
     opposite=False,
 ):
-    risk_reward = payload.get('risk_reward') or 199
+    risk_reward = payload.get("risk_reward") or 199
     risk_reward, trades, current_max_size = get_risk_reward(
         client,
         {**payload, "risk_per_trade": start_risk, "risk_reward": risk_reward},
@@ -586,10 +586,10 @@ def compute_possible_entries(
     kind="short",
     _max_size=0.15,
     switch_to_entry=5,
-    minimum_loss=.5,
+    minimum_loss=0.5,
     raw=False,
     with_trades=False,
-    spread=5
+    spread=5,
 ):
     result = []
     max_size = _max_size
@@ -618,7 +618,7 @@ def compute_possible_entries(
             max_size,
             remaining_profit,
             strategy=strategy,
-            opposite=opposite
+            opposite=opposite,
         )
         # print('pp',pp)
         # rr = build_trades(
@@ -634,7 +634,7 @@ def compute_possible_entries(
         # )
         rr = pp["trades"]
         risk_reward = pp["risk_reward"]
-        max_size = pp['max_size']
+        max_size = pp["max_size"]
         if not rr:
             break
         buy_price = rr[-1]["entry"]
@@ -650,21 +650,19 @@ def compute_possible_entries(
         if loss > remaining_profit:
             break
         item_to_add = {
-                "entry": buy_price,
-                "stop": stop_price,
-                "risk_per_trade": remaining_profit,
-                "loss": loss,
-                "pnl": rr[0]["pnl"],
-                "%": to_f(rr[0]["pnl"] / loss, "%.2f"),
-                "no_of_trades": len(rr),
-                "risk_reward_v": risk_reward,
-                'max_size':max_size
-            }
+            "entry": buy_price,
+            "stop": stop_price,
+            "risk_per_trade": remaining_profit,
+            "loss": loss,
+            "pnl": rr[0]["pnl"],
+            "%": to_f(rr[0]["pnl"] / loss, "%.2f"),
+            "no_of_trades": len(rr),
+            "risk_reward_v": risk_reward,
+            "max_size": max_size,
+        }
         if with_trades:
-            item_to_add['trades'] = rr
-        result.append(
-            item_to_add
-        )
+            item_to_add["trades"] = rr
+        result.append(item_to_add)
         # if abs(loss) <= switch_to_entry:
         #     strategy = "entry"
         if kind == "short":
@@ -686,6 +684,31 @@ def compute_possible_entries(
         remaining_profit -= loss
         loss_diff = abs(loss)
         print("remaining_profit", remaining_profit)
-        print({'entry':buy_price,'stop':stop_price})
+        print({"entry": buy_price, "stop": stop_price})
     print("remaining_profit", remaining_profit)
-    return result
+    return parse_trades(result, kind)
+
+
+def parse_trades(results, kind):
+    first_entry = results[0]
+    remaining = results[1:]
+    solutions = [first_entry]
+    if remaining:
+        if kind == "long":
+            entry = max([x["entry"] for x in remaining])
+            stop = min([x["stop"] for x in remaining])
+        else:
+            entry = min([x["entry"] for x in remaining])
+            stop = max([x["stop"] for x in remaining])
+        risk = sum([x["loss"] for x in remaining])
+        payload = {
+            **remaining[0],
+            "entry": entry,
+            "stop": stop,
+            "risk_per_trade": risk,
+            "loss": risk,
+            "trades": [],
+        }
+        solutions.append(payload)
+
+    return solutions
