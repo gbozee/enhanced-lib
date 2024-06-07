@@ -590,6 +590,7 @@ def compute_possible_entries(
     raw=False,
     with_trades=False,
     spread=5,
+    full=False,
 ):
     result = []
     max_size = _max_size
@@ -703,11 +704,11 @@ def compute_possible_entries(
         print({"entry": buy_price, "stop": stop_price})
     print("remaining_profit", remaining_profit)
     if result:
-        return parse_trades(client, payload, result, kind)
+        return parse_trades(client, payload, result, kind, full=full)
     return result
 
 
-def parse_trades(client: ExchangeCache, pp, results, kind):
+def parse_trades(client: ExchangeCache, pp, results, kind, full=False):
     first_entry = results[0]
     remaining = results[1:]
     solutions = [first_entry]
@@ -723,7 +724,7 @@ def parse_trades(client: ExchangeCache, pp, results, kind):
         risk = sum([x["loss"] for x in remaining])
         payload = {
             **remaining[0],
-            "entry": bb_entry,
+            "entry": bb_entry if full else entry,
             # "entry": entry,
             "stop": stop,
             "risk_per_trade": risk,
