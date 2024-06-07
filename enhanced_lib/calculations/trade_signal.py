@@ -1,4 +1,3 @@
-import numpy as np
 from dataclasses import dataclass
 import math
 from typing import Iterable, List, Optional, Tuple

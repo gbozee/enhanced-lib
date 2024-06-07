@@ -586,6 +586,7 @@ def compute_possible_entries(
     kind="short",
     _max_size=0.15,
     switch_to_entry=5,
+    minimum_loss=1,
     raw=False,
     with_trades=False,
     spread=5
@@ -601,6 +602,7 @@ def compute_possible_entries(
     strategy = "quantity"
     opposite = False
     risk_reward = None
+    loss_diff = 10
     while remaining_profit > 1:
         previous_buy_price = buy_price
         previous_stop_price = stop_price
@@ -639,6 +641,8 @@ def compute_possible_entries(
         stop_price = rr[0]["entry"]
         loss = abs(rr[0]["neg.pnl"])
         if not loss and kind == "short":
+            break
+        if loss_diff < minimum_loss:
             break
         if loss < switch_to_entry:
             opposite = True
@@ -680,6 +684,7 @@ def compute_possible_entries(
             result.pop()
             # stop_price = self.buy_price
         remaining_profit -= loss
+        loss_diff = abs(loss)
         print("remaining_profit", remaining_profit)
         print({'entry':buy_price,'stop':stop_price})
     print("remaining_profit", remaining_profit)
