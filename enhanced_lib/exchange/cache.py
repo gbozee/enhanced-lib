@@ -716,6 +716,7 @@ def parse_trades(client:ExchangeCache,results, kind):
         payload['risk_reward_v'] = risk_reward
         payload['no_of_trades'] = len(tt)
         payload['max_size'] = max_size
+        payload['trades'] = tt
         solutions.append(payload)
 
     return solutions
