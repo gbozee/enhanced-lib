@@ -61,7 +61,6 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
     # print("trades", trades)
     _max = max([x["entry"] for x in trades]) if trades else 0
     _min = min([x["entry"] for x in trades]) if trades else 0
-    _pnl = max([x.get("pnl") for x in trades]) if trades else 0
     # total = sum([x["quantity"] for x in trades])
     # result = {
     #     "result": trades,
@@ -75,9 +74,13 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
     _max_quantity = 0
     _min_quantity = 0
     avg_size = 0
+    _pnl = 0
+    neg_pnl = 0
     if trades:
         _min_quantity = trades[0]["quantity"]
         avg_size = trades[0]["avg_size"]
+        _pnl = trades[0]["pnl"]
+        neg_pnl = trades[0]["neg.pnl"]
     total = 0
     max_index = -1
     total = sum([x["quantity"] for x in trades])
@@ -105,7 +108,9 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
         "min": _min_quantity,
         "entry": _max if config.kind == "long" else _min,
         "pnl": _pnl,
+        "neg.pnl": neg_pnl,
         "max_index": max_index,
+        "risk_per_trade": config.risk_per_trade,
     }
     found_trades = max_index > -1
 
@@ -113,24 +118,66 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
         return result
     return []
 
+    # def find_index_by_condition(
+    #     lst: typing.List[typing.Any],
+    #     condition: typing.Callable[[typing.Any], bool],
+    #     default_key="pnl",
+    # ):
+    #     found = []
+    #     for i, item in enumerate(lst):
+    #         if condition(item):
+    #             found.append(i)
+    #             # return i
+    #     if len(found) == 1:
+    #         return found[0]
+    #     if len(found) == 0:
+    #         return -1
+    #     maximum = max(found, key=lambda x: lst[x][default_key])
+    #     return maximum
+    return -1  # Return -1 if no matching item is found
+
 
 def find_index_by_condition(
     lst: typing.List[typing.Any],
-    condition: typing.Callable[[typing.Any], bool],
-    default_key="pnl",
-):
+    kind: str,
+    condition: typing.Callable[[str], bool],
+    default_key="neg.pnl",
+) -> int:
     found = []
-    for i, item in enumerate(lst):
-        if condition(item):
-            found.append(i)
-            # return i
+    new_lst = [{**i, "net_diff": i["neg.pnl"] + i["risk_per_trade"]} for i in lst]
+
+    for index, item in enumerate(new_lst):
+        if item["net_diff"] > 0:
+            found.append(index)
+
+    transformed_found = [{**new_lst[i], "index": i} for i in found]
+    sorted_found = sorted(
+        (i for i in transformed_found if i["net_diff"] > 0),
+        key=lambda x: (-x["total"], -x["net_diff"]),
+    )
+
+    if default_key == "quantity":
+        return sorted_found[0]["index"] if sorted_found else -1
+
     if len(found) == 1:
         return found[0]
-    if len(found) == 0:
+
+    if not found:
         return -1
-    maximum = max(found, key=lambda x: lst[x][default_key])
+
+    def entry_condition(a, b):
+        if kind == "long":
+            return a["entry"] > b["entry"]
+        return a["entry"] < b["entry"]
+
+    maximum = found[0]
+    for current_index in found:
+        if new_lst[current_index]["net_diff"] < new_lst[maximum][
+            "net_diff"
+        ] and entry_condition(new_lst[current_index], new_lst[maximum]):
+            maximum = current_index
+
     return maximum
-    return -1  # Return -1 if no matching item is found
 
 
 def determine_optimum_reward(
@@ -173,7 +220,9 @@ def determine_optimum_reward(
     key = "max" if criterion == "quantity" else "entry"
     index = find_index_by_condition(
         func,
+        app_config.kind,
         lambda x: x[key] == highest,
+        criterion,
         # default_key="pnl" if app_config.kind == "short" else "max",
     )
     if index > -1:

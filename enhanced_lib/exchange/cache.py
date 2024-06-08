@@ -497,6 +497,7 @@ def compute_risk_rewards(
                         break
                 except Exception as e:
                     print(e)
+                    break
                 new_risk += 5
                 counter += 1
             return {
