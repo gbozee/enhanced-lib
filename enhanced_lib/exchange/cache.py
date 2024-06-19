@@ -741,3 +741,63 @@ def parse_trades(client: ExchangeCache, pp, results, kind, full=False):
         solutions.append(payload)
 
     return solutions
+
+
+def compute_possible_optimum_entries(
+    client: ExchangeCache,
+    payload,
+    profit: float,
+    kind="short",
+):
+    result = []
+    remaining_profit = profit
+    buy_price = min(payload["entry"], payload["stop"])
+    stop_price = max(payload["entry"], payload["stop"])
+    if kind == "long":
+        stop_price = min(payload["entry"], payload["stop"])
+        buy_price = max(payload["entry"], payload["stop"])
+    strategy = "quantity"
+    risk_reward = None
+    previous_buy_price = buy_price
+    previous_stop_price = stop_price
+    while remaining_profit > 1:
+        ppr = get_risk_reward(
+            client,
+            {
+                **payload,
+                "entry": previous_buy_price,
+                "stop": previous_stop_price,
+                "risk_per_trade": profit,
+                "risk_reward": risk_reward,
+            },
+            kind,
+            strategy=strategy,
+        )
+        last_stop = ppr[1][0]
+        last_entry = ppr[1][-1]
+        if kind == "long" and last_entry["entry"] > stop_price:
+            previous_stop_price = last_entry["entry"]
+        if kind == "short" and last_entry["entry"] > buy_price:
+            previous_stop_price = last_entry["entry"]
+        if last_stop:
+            remaining_profit -= abs(last_stop["neg.pnl"])
+            print("remaining_profit", remaining_profit)
+            result.append(
+                {
+                    "entry": max([x["entry"] for x in ppr[1]])
+                    if kind == "long"
+                    else min([x["entry"] for x in ppr[1]]),
+                    "stop": min([x["stop"] for x in ppr[1]])
+                    if kind == "long"
+                    else max([x["stop"] for x in ppr[1]]),
+                    "loss": last_stop["neg.pnl"],
+                    "risk_reward": ppr[0],
+                    "profit": last_stop["pnl"],
+                    'trades': ppr[1]
+                }
+            )
+            if remaining_profit < 0:
+                break
+        else:
+            break
+    return result
