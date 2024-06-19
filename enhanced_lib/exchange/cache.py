@@ -782,6 +782,8 @@ def compute_possible_optimum_entries(
         if last_stop:
             remaining_profit -= abs(last_stop["neg.pnl"])
             print("remaining_profit", remaining_profit)
+            if remaining_profit < 0:
+                break
             result.append(
                 {
                     "entry": max([x["entry"] for x in ppr[1]])
@@ -793,11 +795,9 @@ def compute_possible_optimum_entries(
                     "loss": last_stop["neg.pnl"],
                     "risk_reward": ppr[0],
                     "profit": last_stop["pnl"],
-                    'trades': ppr[1]
+                    'trades': ppr[1],
                 }
             )
-            if remaining_profit < 0:
-                break
         else:
             break
     return result
