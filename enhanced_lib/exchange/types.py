@@ -176,7 +176,7 @@ class ClosedOrderDict(TypedDict):
     price: str
     qty: str
     realizedPnl: str
-    marginAsset: str
+    # marginAsset: str
     quoteQty: str
     commission: str
     commissionAsset: str
