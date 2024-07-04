@@ -72,7 +72,7 @@ class LnurlHandler:
 
     def lnurl_address_encoded(self) -> lnurl.Lnurl:
         if self.username:
-            return lnurl.encode(str(self.base_url / "lnurlp" / self.username))
+            return lnurl.encode(f"{self.base_url}/lnurlp/{self.username}")
 
     def metadata_for_payrequest(self) -> str:
         return json.dumps(
@@ -105,7 +105,7 @@ class LnurlHandler:
         )
         return lnurl.LnurlPayResponse.parse_obj(
             dict(
-                callback=str(self.base_url / f"lnurlp/{username}/callback"),
+                callback=f"{self.base_url}/lnurlp/{username}/callback",
                 minSendable=self.min_sats_receivable * 1000,
                 maxSendable=self.max_sats_receivable * 1000,
                 metadata=self.metadata_for_payrequest(),
