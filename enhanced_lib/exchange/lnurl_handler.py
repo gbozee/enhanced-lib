@@ -100,7 +100,9 @@ class LnurlHandler:
         if not self.lnurl_address:
             return None
 
-        logger.info("LUD-16 payRequest for username='{username}'", username=username)
+        logger.info(
+            "LUD-16 payRequest for username='{username}'".format(username=username)
+        )
         return lnurl.LnurlPayResponse.model_validate(
             dict(
                 callback=str(self.base_url / f"lnurlp/{username}/callback"),
@@ -127,23 +129,26 @@ class LnurlHandler:
         # may not like the invoice amount not matching?
         amount_sat = math.ceil(amount / 1000)
         logger.info(
-            "LUD-06 payRequestCallback for username='{username}' sat={amount_sat} (mSat={amount})",
-            username=username,
-            amount_sat=amount_sat,
-            amount=amount,
+            "LUD-06 payRequestCallback for username='{username}' sat={amount_sat} (mSat={amount})".format(
+                username=username,
+                amount_sat=amount_sat,
+                amount=amount,
+            )
         )
 
         if amount_sat < self.min_sats_receivable:
             logger.warning(
-                "LUD-06 payRequestCallback with too-low amount {amount_sat} sats",
-                amount_sat=amount_sat,
+                "LUD-06 payRequestCallback with too-low amount {amount_sat} sats".format(
+                    amount_sat=amount_sat,
+                )
             )
             return None
 
         if amount_sat > self.max_sats_receivable:
             logger.warning(
-                "LUD-06 payRequestCallback with too-high amount {amount_sat} sats",
-                amount_sat=amount_sat,
+                "LUD-06 payRequestCallback with too-high amount {amount_sat} sats".format(
+                    amount_sat=amount_sat,
+                )
             )
             return None
 
