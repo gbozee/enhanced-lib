@@ -2,3 +2,4 @@ requests==2.31.0
 numpy==1.26.4
 numba==0.59.1
 lnurl==0.3.6
+pydantic==1.10.14

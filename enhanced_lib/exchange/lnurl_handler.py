@@ -103,7 +103,7 @@ class LnurlHandler:
         logger.info(
             "LUD-16 payRequest for username='{username}'".format(username=username)
         )
-        return lnurl.LnurlPayResponse.model_validate(
+        return lnurl.LnurlPayResponse.parse_obj(
             dict(
                 callback=str(self.base_url / f"lnurlp/{username}/callback"),
                 minSendable=self.min_sats_receivable * 1000,
@@ -157,7 +157,7 @@ class LnurlHandler:
             logger.warning("Failed to generate lightning invoice")
             return None
 
-        return lnurl.LnurlPayActionResponse.model_validate(
+        return lnurl.LnurlPayActionResponse.parse_obj(
             dict(
                 pr=invoice,
                 success_action={
