@@ -6,4 +6,4 @@ pydantic==1.10.14
 bitstring==4.2.3
 ecdsa==0.19.0
 base58==2.1.1
-secp256k1==0.14.0
+secp256k1
