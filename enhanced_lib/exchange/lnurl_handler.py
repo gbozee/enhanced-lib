@@ -8,6 +8,8 @@ import math
 import logging
 from enhanced_lib.exchange.client import TradeClient, loop_helper
 from enhanced_lib.calculations.utils import to_f
+from enhanced_lib.bolt11.decode import decode
+import secrets
 
 MAX_CORN = 0.01 * 100_000_000
 
@@ -25,6 +27,9 @@ class FundSource:
 
     async def deposit_funds(self, owner: str, amount: int) -> str:
         """amount in sats"""
+        raise NotImplementedError
+
+    def withdraw_funds(self, owner: str, amount: int, invoice: str, symbol="BTCUSDC"):
         raise NotImplementedError
 
 
@@ -49,6 +54,24 @@ class ExchangeFundingSource(FundSource):
         )
         if result:
             return result["address"]
+
+        def withdraw_funds(
+            self,
+            owner: str,
+            amount: int,
+            invoice: str,
+            symbol="BTCUSDC",
+        ):
+            amount_in_btc = amount / 100_000_000
+            result = self.client.lightning_withdraw(
+                {
+                    "owner": owner,
+                    "symbol": symbol,
+                    "amount": amount_in_btc,
+                    "invoice": invoice,
+                },
+            )
+            return result
 
 
 @dataclass
@@ -92,7 +115,7 @@ class LnurlHandler:
         """
         Implements [LUD-16](https://github.com/lnurl/luds/blob/luds/16.md) `payRequest`
         initial step, using human-readable `username@host` addresses.
-        path="/lnurlp/{username}", method="GET"
+        path="/lnurlp/{username}", method="GET">
         path="/.well-known/lnurlp/{username}",
         """
         username = parse_username(ln_address)
@@ -167,6 +190,35 @@ class LnurlHandler:
                 routes=[],
             )
         )
+
+    def lnurl_withdraw_lud03(
+        self,
+        description="Initiating withdrawal",
+        callback_url=None,
+        username=None,
+    ):
+        maximum_amount = self.service.get_account_balance()
+        minimum_amount = 0
+        callback = callback_url or f"{self.base_url}/lnurlw/{username}/callback"
+        k1 = secrets.token_hex(32)
+        payload = lnurl.LnurlWithdrawResponse.parse_obj(
+            {
+                "callback": callback,
+                "k1": k1,
+                "defaultDescription": description,
+                "minWithdrawable": minimum_amount,
+                "maxWithdrawable": maximum_amount,
+            }
+        )
+        return payload
+
+    def initiate_withdrawal(self, owner: str, invoice: str, fee=100):
+        fee_msats = fee * 1000
+        details = decode(invoice)
+        invoice_amount = details.amount_msat
+        total_amount = invoice_amount + fee_msats
+        amount_in_sats = math.ceil(total_amount / 1000)
+        return self.service.withdraw_funds(owner, amount_in_sats, invoice)
 
 
 def parse_username(email_or_name):
