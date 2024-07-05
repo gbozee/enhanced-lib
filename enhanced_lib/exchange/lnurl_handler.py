@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import asyncio
-from typing import Any, Optional
+from typing import Any, Optional,TypedDict
 import lnurl
 import json
 import hashlib
@@ -8,7 +8,6 @@ import math
 import logging
 from enhanced_lib.exchange.client import TradeClient, loop_helper
 from enhanced_lib.calculations.utils import to_f
-from enhanced_lib.bolt11.decode import decode
 import secrets
 
 MAX_CORN = 0.01 * 100_000_000
@@ -21,6 +20,18 @@ handler.setFormatter(logging.Formatter("%(message)s"))
 logger.addHandler(handler)
 
 
+class Invoice(TypedDict):
+    currency: str
+    amount_msat: int
+    payment_hash: str
+    payment_secret: str
+    description: str
+    payee: str
+    signature: dict
+    features: dict
+    date: int
+
+
 class FundSource:
     async def get_owner(self, owner: str):
         raise NotImplementedError
@@ -30,6 +41,9 @@ class FundSource:
         raise NotImplementedError
 
     def withdraw_funds(self, owner: str, amount: int, invoice: str, symbol="BTCUSDC"):
+        raise NotImplementedError
+
+    def decode_invoice(self, invoice: str) -> Invoice:
         raise NotImplementedError
 
 
@@ -72,6 +86,9 @@ class ExchangeFundingSource(FundSource):
                 },
             )
             return result
+
+    def decode_invoice(self, invoice: str):
+        return self.client.lightning_decode({"invoice": invoice})
 
 
 @dataclass
@@ -214,8 +231,8 @@ class LnurlHandler:
 
     def initiate_withdrawal(self, owner: str, invoice: str, fee=100):
         fee_msats = fee * 1000
-        details = decode(invoice)
-        invoice_amount = details.amount_msat
+        details = self.service.decode_invoice(invoice)
+        invoice_amount = details["amount_msat"]
         total_amount = invoice_amount + fee_msats
         amount_in_sats = math.ceil(total_amount / 1000)
         return self.service.withdraw_funds(owner, amount_in_sats, invoice)

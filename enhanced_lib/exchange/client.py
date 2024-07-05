@@ -1042,3 +1042,9 @@ class TradeClient:
             {"message": params["message"], "owner": params["owner"]},
         )
         return result
+
+    def lightning_decode(self, params):
+        result = self.api_call(
+            "api/lightning/decode", "POST", {"invoice": params["invoice"]}
+        )
+        return result
