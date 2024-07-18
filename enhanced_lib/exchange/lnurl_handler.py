@@ -240,4 +240,5 @@ class LnurlHandler:
 
 def parse_username(email_or_name):
     username = email_or_name.split("@")[0]
+    print("function")
     return username
