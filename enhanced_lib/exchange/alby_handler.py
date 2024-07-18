@@ -57,7 +57,7 @@ class AlbyWallet:
             result = func(
                 url, headers={"Authorization": f"Bearer {self.api_key}"}, **kwargs
             )
-            if result.status < 400:
+            if result.status_code < 400:
                 return result.json()
         return None
 
