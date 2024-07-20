@@ -444,13 +444,36 @@ def build_trades(
     return result["result"]
 
 
-def get_risk_reward(client: ExchangeCache, payload, kind, strategy="entry"):
+def get_risk_reward(client: ExchangeCache, payload, kind, strategy="entry", loss=None):
     config = client.build_custom_config(payload, kind)
     config.strategy = strategy
     app_config = config.app_config
     app_config.raw = True
-    result = determine_optimum_reward(app_config)
+    result = determine_optimum_reward(app_config, loss=loss)
     return result.get("value"), result.get("result"), result.get("size")
+
+
+def compute_risk_to_yield_loss(
+    client: ExchangeCache, payload, kind, loss=None, increment=5
+):
+    risk = payload.get("risk_per_trade")
+    start = get_risk_reward(client, payload, kind, strategy="quantity")
+    neg_pnl = start[1][0]["neg.pnl"]
+    while abs(neg_pnl) < loss:
+        risk += increment
+        result = get_risk_reward(
+            client, {**payload, "risk_per_trade": risk}, kind, strategy="quantity"
+        )
+        neg_pnl = result[1][0]["neg.pnl"]
+        print("risk", risk, "neg_pnl", neg_pnl)
+    risk_reward = get_risk_reward(
+        client,
+        {**payload, "risk_per_trade": risk},
+        kind,
+        strategy="quantity",
+        loss=loss,
+    )
+    return {"risk": risk, "risk_reward": risk_reward[0]}
 
 
 def compute_risk_rewards(
@@ -795,7 +818,7 @@ def compute_possible_optimum_entries(
                     "loss": last_stop["neg.pnl"],
                     "risk_reward": ppr[0],
                     "profit": last_stop["pnl"],
-                    'trades': ppr[1],
+                    "trades": ppr[1],
                 }
             )
         else:

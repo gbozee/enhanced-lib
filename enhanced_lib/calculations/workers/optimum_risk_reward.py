@@ -140,8 +140,8 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
 def find_index_by_condition(
     lst: typing.List[typing.Any],
     kind: str,
-    condition: typing.Callable[[str], bool],
     default_key="neg.pnl",
+    loss=None,
 ) -> int:
     found = []
     new_lst = [{**i, "net_diff": i["neg.pnl"] + i["risk_per_trade"]} for i in lst]
@@ -155,8 +155,9 @@ def find_index_by_condition(
         (i for i in transformed_found if i["net_diff"] > 0),
         key=lambda x: (-x["total"], -x["net_diff"]),
     )
-
     if default_key == "quantity":
+        if loss:
+            sorted_found = [x for x in sorted_found if abs(x["neg.pnl"]) >= loss]
         return sorted_found[0]["index"] if sorted_found else -1
 
     if len(found) == 1:
@@ -181,7 +182,7 @@ def find_index_by_condition(
 
 
 def determine_optimum_reward(
-    app_config: AppConfig, no_of_cpu=4, gap=1, option="default", ignore=False
+    app_config: AppConfig, no_of_cpu=4, gap=1, option="default", ignore=False, loss=None
 ):
     criterion = app_config.strategy or "quantity"
     risk_rewards = [x for x in range(30, 199, gap)]
@@ -221,8 +222,8 @@ def determine_optimum_reward(
     index = find_index_by_condition(
         func,
         app_config.kind,
-        lambda x: x[key] == highest,
         criterion,
+        loss=loss,
         # default_key="pnl" if app_config.kind == "short" else "max",
     )
     if index > -1:
