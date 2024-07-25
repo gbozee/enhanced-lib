@@ -75,3 +75,4 @@ startup.sh
 *.prof 
 demo 
 venv*
+rust/enhanced_lib/target
