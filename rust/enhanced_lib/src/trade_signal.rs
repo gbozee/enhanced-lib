@@ -1,5 +1,4 @@
 use std::{
-    cmp::Ordering,
     collections::{HashMap, HashSet},
 };
 
@@ -223,7 +222,7 @@ impl Signal {
         }
     }
 
-    pub fn get_margin_range(&self, current_price: f64) -> Option<((f64, f64))> {
+    pub fn get_margin_range(&self, current_price: f64) -> Option<(f64, f64)> {
         let top_zones = _get_zone_nogen(
             current_price - self.min_price(),
             self.focus,
@@ -606,9 +605,10 @@ impl Signal {
                     risk_per_trade,
                     &market_orders,
                     i,
+                    0.0, // Placeholder for new_fees
                     kind,
-                    market_orders.len() + limit_orders.len(),
                     Some(take_profit),
+                    market_orders.len() + limit_orders.len(),
                 ) {
                     market_trades.push(y);
                 }
@@ -639,8 +639,8 @@ impl Signal {
                     i,
                     total_incurred_market_fees,
                     kind,
-                    market_orders.len() + limit_orders.len(),
                     Some(take_profit),
+                    market_orders.len() + limit_orders.len(),
                 ) {
                     limit_trades.push(y);
                 }
@@ -664,12 +664,12 @@ impl Signal {
                 let pair_size =
                     (self.minimum_size / total_orders.last().unwrap()["quantity"]).ceil() as usize;
                 less_than_min_size =
-                    group_into_pairs_with_sum_less_than(&less_than_min_size, self.minimum_size); // Group into pairs with sum less than minimum size
+                    group_into_pairs_with_sum_less_than(&less_than_min_size, self.minimum_size, "quantity"); // Group into pairs with sum less than minimum size
                 let mut result: Vec<HashMap<String, f64>> = Vec::new();
                 for mut x in less_than_min_size {
                     let prices: Vec<f64> = x.iter().map(|y| y["entry"]).collect();
                     let avg =
-                        determine_avg(&prices, &self.price_places, &self.decimal_places)
+                        determine_avg(&prices, &self.price_places, &self.decimal_places);
                         let mut map = HashMap::new();
                         map.insert("entry".to_string(), avg["price"]);
                         map.insert("quantity".to_string(), avg["quantity"]);
@@ -749,7 +749,7 @@ mod tests {
         assert_eq!(signal.split, None);
         assert_eq!(signal.max_size, None);
         assert_eq!(signal.trade_size, None);
-        assert_eq!(signal.increase_position, None);
+        assert_eq!(signal.increase_position, false);
         assert_eq!(signal.default, false);
         assert_eq!(signal.minimum_size, 0.004);
         assert_eq!(signal.min_trades(), 55);
@@ -760,7 +760,7 @@ mod tests {
         let expected_output = vec![
             100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0,
             100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0,
-            100.0, 100.0, 100.0, 100.0, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1,
+            100.0, 100.0, 100.0, 100.0, 100.0, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1,
             100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1,
             100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1,
         ];

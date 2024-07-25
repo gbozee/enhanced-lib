@@ -156,7 +156,7 @@ pub fn determine_avg(
 }
 
 pub fn group_into_pairs_with_sum_less_than(
-    mut arr: &[HashMap<String, f64>],
+    arr: &[HashMap<String, f64>],
     target_sum: f64,
     key: &str,
 ) -> Vec<Vec<HashMap<String, f64>>> {
@@ -174,8 +174,12 @@ pub fn group_into_pairs_with_sum_less_than(
         }
     }
 
+    if !current_group.is_empty() {
+        result.push(current_group);
+    }
+
     if result.is_empty() {
-        vec![current_group]
+        vec![vec![]]
     } else {
         result
     }
@@ -284,5 +288,68 @@ mod tests {
 
         assert_eq!(avg["price"], 166.67);
         assert_eq!(avg["quantity"], 3.0);
+    }
+
+    #[test]
+    fn test_empty_list() {
+        let arr: Vec<HashMap<String, f64>> = vec![];
+        let target_sum = 10.0;
+        let key = "quantity";
+        let result = group_into_pairs_with_sum_less_than(&arr, target_sum, key);
+        assert_eq!(result, vec![vec![]]);
+    }
+
+    #[test]
+    fn test_single_element() {
+        let mut item = HashMap::new();
+        item.insert("quantity".to_string(), 5.0);
+        let arr = vec![item];
+        let target_sum = 10.0;
+        let key = "quantity";
+        let result = group_into_pairs_with_sum_less_than(&arr, target_sum, key);
+        assert_eq!(result, vec![vec![arr[0].clone()]]);
+    }
+
+    #[test]
+    fn test_multiple_elements_with_sum_less_than_target() {
+        let mut item1 = HashMap::new();
+        item1.insert("quantity".to_string(), 3.0);
+        let mut item2 = HashMap::new();
+        item2.insert("quantity".to_string(), 4.0);
+        let arr = vec![item1.clone(), item2.clone()];
+        let target_sum = 10.0;
+        let key = "quantity";
+        let result = group_into_pairs_with_sum_less_than(&arr, target_sum, key);
+        assert_eq!(result, vec![vec![item1, item2]]);
+    }
+
+    #[test]
+    fn test_multiple_elements_with_sum_greater_than_target() {
+        let mut item1 = HashMap::new();
+        item1.insert("quantity".to_string(), 6.0);
+        let mut item2 = HashMap::new();
+        item2.insert("quantity".to_string(), 5.0);
+        let arr = vec![item1.clone(), item2.clone()];
+        let target_sum = 10.0;
+        let key = "quantity";
+        let result = group_into_pairs_with_sum_less_than(&arr, target_sum, key);
+        assert_eq!(result, vec![vec![item1, item2]]);
+    }
+
+    #[test]
+    fn test_mixed_elements() {
+        let mut item1 = HashMap::new();
+        item1.insert("quantity".to_string(), 3.0);
+        let mut item2 = HashMap::new();
+        item2.insert("quantity".to_string(), 7.0);
+        let mut item3 = HashMap::new();
+        item3.insert("quantity".to_string(), 2.0);
+        let mut item4 = HashMap::new();
+        item4.insert("quantity".to_string(), 5.0);
+        let arr = vec![item1.clone(), item2.clone(), item3.clone(), item4.clone()];
+        let target_sum = 10.0;
+        let key = "quantity";
+        let result = group_into_pairs_with_sum_less_than(&arr, target_sum, key);
+        assert_eq!(result, vec![vec![item1, item2], vec![item3, item4]]);
     }
 }
