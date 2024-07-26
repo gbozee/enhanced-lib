@@ -1,13 +1,11 @@
-use std::{
-    collections::{HashMap, HashSet},
-};
+use std::collections::{HashMap, HashSet};
 
 use ordered_float::OrderedFloat;
 
 // Import the utils module
 use crate::utils::{
-    determine_avg, determine_close_price, determine_pnl, determine_position_size, to_f,
-    PositionSizeParams, group_into_pairs_with_sum_less_than,
+    determine_avg, determine_close_price, determine_pnl, determine_position_size,
+    group_into_pairs_with_sum_less_than, to_f, PositionSizeParams,
 };
 
 // Define the TradeInstanceType struct
@@ -45,7 +43,7 @@ fn _get_zone_nogen(current_price: f64, focus: f64, percent_change: f64, places: 
             result.push(to_f(last, places));
             focus_high = last;
             last = focus_high * (1.0 + percent_change).powf(-1.0);
-            focus_low = last * (1.0 + percent_change);
+            // focus_low = last * (1.0 + percent_change);
         }
     } else {
         if focus_high <= current_price {
@@ -653,36 +651,45 @@ impl Signal {
                     .filter(|&x| x["quantity"] >= self.minimum_size)
                     .cloned()
                     .collect();
-                let mut less_than_min_size: Vec<Vec<HashMap<String, f64>>> = total_orders
+                let mut _less_than_min_size: Vec<HashMap<String, f64>> = total_orders
                     .iter()
                     .filter(|&x| x["quantity"] < self.minimum_size)
-                    .cloned().collect();
-                if less_than_min_size.is_empty() {
+                    .cloned()
+                    .collect();
+                if _less_than_min_size.is_empty() {
                     return greater_than_min_size;
                 }
-                let pair_size =
-                    (self.minimum_size / total_orders.last().unwrap()["quantity"]).ceil() as usize;
-                less_than_min_size =
-                    group_into_pairs_with_sum_less_than(&less_than_min_size, self.minimum_size, "quantity"); // Group into pairs with sum less than minimum size
+                // let pair_size =
+                //     (self.minimum_size / total_orders.last().unwrap()["quantity"]).ceil() as usize;
+                let less_than_min_size = group_into_pairs_with_sum_less_than(
+                    &_less_than_min_size,
+                    self.minimum_size,
+                    "quantity",
+                ); // Group into pairs with sum less than minimum size
                 let mut result: Vec<HashMap<String, f64>> = Vec::new();
-                for mut x in less_than_min_size {
-                    let prices: Vec<f64> = x.iter().map(|y| y["entry"]).collect();
-                    let avg =
-                        determine_avg(&prices, &self.price_places, &self.decimal_places);
-                        let mut map = HashMap::new();
-                        map.insert("entry".to_string(), avg["price"]);
-                        map.insert("quantity".to_string(), avg["quantity"]);
-                        map.insert(
-                            "risk".to_string(),
-                            to_f(
-                                x.iter().map(|y| y["risk"]).sum::<f64>(),
-                                &self.decimal_places,
-                            ),
-                        );
-                        let pnl =
-                            determine_pnl(avg["price"], x[0]["sell_price"], avg["quantity"], kind);
-                        map.insert("pnl".to_string(), to_f(pnl, &self.decimal_places));
-                        result.push(map);
+                for x in less_than_min_size {
+                    let prices: Vec<HashMap<String, f64>> = x
+                        .iter()
+                        .map(|y| {
+                            let mut map = HashMap::new();
+                            map.insert("price".to_string(), y["entry"]);
+                            map
+                        })
+                        .collect();
+                    let z = determine_avg(prices, &self.price_places, &self.decimal_places);
+                    let mut map = HashMap::new();
+                    map.insert("entry".to_string(), z["price"]);
+                    map.insert("quantity".to_string(), z["quantity"]);
+                    map.insert(
+                        "risk".to_string(),
+                        to_f(
+                            x.iter().map(|y| y["risk"]).sum::<f64>(),
+                            &self.decimal_places,
+                        ),
+                    );
+                    let pnl = determine_pnl(z["price"], x[0]["sell_price"], z["quantity"], kind);
+                    map.insert("pnl".to_string(), to_f(pnl, &self.decimal_places));
+                    result.push(map);
                 }
                 if greater_than_min_size.is_empty() {
                     return result;
@@ -719,8 +726,8 @@ mod tests {
             price_places: "%.1f".to_string(),
             decimal_places: "%.3f".to_string(),
             fee: 0.0006,
-            support: Some(65858.0),
-            resistance: Some(70495.0),
+            support: 65858.0,
+            resistance: 70495.0,
             take_profit: None,
             risk_per_trade: 1.325,
             risk_reward: 35,
@@ -737,9 +744,9 @@ mod tests {
         assert_eq!(signal.decimal_places, "%.3f");
         assert_eq!(signal.zone_risk, 1);
         assert_eq!(signal.fee, 0.0006);
-        assert_eq!(signal.support, Some(65858.0));
+        assert_eq!(signal.support, 65858.0);
         assert_eq!(signal.risk_reward, 35);
-        assert_eq!(signal.resistance, Some(70495.0));
+        assert_eq!(signal.resistance, 70495.0);
         assert_eq!(signal.take_profit, None);
         assert_eq!(signal.risk_per_trade, 1.325);
         assert_eq!(signal.increase_size, false);
@@ -759,7 +766,7 @@ mod tests {
         let expected_output = vec![
             100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0,
             100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0,
-            100.0, 100.0, 100.0, 100.0, 100.0, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1,
+            100.0, 100.0, 100.0, 100.0, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1,
             100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1,
             100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1, 100.1,
         ];
