@@ -185,6 +185,126 @@ pub fn group_into_pairs_with_sum_less_than(
     }
 }
 
+const FIB_RANGES: [f64; 10] = [
+    0.0, 0.236, 0.382, 0.5, 0.618, 0.789, 1.0, 1.272, 1.414, 1.618,
+];
+
+pub fn fibonacci_analysis(
+    support: f64,
+    resistance: f64,
+    kind: &str,
+    trend: &str,
+    places: &str,
+) -> Vec<f64> {
+    let swing_high = if trend == "long" { resistance } else { support };
+    let swing_low = if trend == "long" { support } else { resistance };
+
+    let fib_calc = |p: f64, h: f64, l: f64| -> f64 { (p * (h - l)) + l };
+
+    let fib_values: Vec<f64> = FIB_RANGES
+        .iter()
+        .map(|&x| fib_calc(x, swing_high, swing_low))
+        .map(|r| to_f(r, places))
+        .collect();
+
+    if kind == "short" {
+        if trend == "long" {
+            fib_values.into_iter().rev().collect()
+        } else {
+            fib_values
+        }
+    } else {
+        if trend == "short" {
+            fib_values.into_iter().rev().collect()
+        } else {
+            fib_values
+        }
+    }
+}
+
+pub fn determine_fib_support(
+    value_with_fibs: Vec<HashMap<String, f64>>,
+    places: &str,
+) -> HashMap<String, f64> {
+    let mut a = Vec::new();
+    let mut y = Vec::new();
+
+    for i in value_with_fibs.iter() {
+        a.push(vec![i["fib"], 1.0 - i["fib"]]);
+        y.push(i["value"]);
+    }
+
+    // Solve the system of linear equations Ax = Y
+    // A is a 2x2 matrix, so we can solve it manually
+    let a11 = a[0][0];
+    let a12 = a[0][1];
+    let a21 = a[1][0];
+    let a22 = a[1][1];
+    let y1 = y[0];
+    let y2 = y[1];
+
+    let det = a11 * a22 - a12 * a21;
+    let inv_a11 = a22 / det;
+    let inv_a12 = -a12 / det;
+    let inv_a21 = -a21 / det;
+    let inv_a22 = a11 / det;
+
+    let res1 = inv_a11 * y1 + inv_a12 * y2;
+    let res2 = inv_a21 * y1 + inv_a22 * y2;
+
+    let support = to_f(res1.min(res2), places);
+    let resistance = to_f(res1.max(res2), places);
+
+    let mut result = HashMap::new();
+    result.insert("support".to_string(), support);
+    result.insert("resistance".to_string(), resistance);
+
+    result
+}
+pub fn extend_fibonacci(
+    support: f64,
+    resistance: f64,
+    focus: Option<f64>,
+    kind: &str,
+    trend: &str,
+    places: &str,
+    high: f64,
+    low: f64,
+) -> HashMap<String, f64> {
+    let _focus = focus.unwrap_or(resistance);
+    let values = fibonacci_analysis(support, resistance, kind, trend, places);
+    let remaining_buy_zones: Vec<f64> = values.iter().cloned().filter(|&i| i <= _focus).collect();
+    let remaining_sell_zones: Vec<f64> = values.iter().cloned().filter(|&i| i >= _focus).collect();
+
+    let pairs = vec![
+        {
+            let mut map = HashMap::new();
+            map.insert("fib".to_string(), high);
+            map.insert(
+                "value".to_string(),
+                *remaining_sell_zones
+                    .iter()
+                    .min_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap(),
+            );
+            map
+        },
+        {
+            let mut map = HashMap::new();
+            map.insert("fib".to_string(), low);
+            map.insert(
+                "value".to_string(),
+                *remaining_buy_zones
+                    .iter()
+                    .min_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap(),
+            );
+            map
+        },
+    ];
+
+    determine_fib_support(pairs, places)
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -351,5 +471,95 @@ mod tests {
         let key = "quantity";
         let result = group_into_pairs_with_sum_less_than(&arr, target_sum, key);
         assert_eq!(result, vec![vec![item1, item2], vec![item3, item4]]);
+    }
+
+    #[test]
+    fn test_fibonacci_analysis() {
+        let support = 100.0;
+        let resistance = 200.0;
+        let kind = "long";
+        let trend = "long";
+        let places = "%.1f";
+        let result = fibonacci_analysis(support, resistance, kind, trend, places);
+        let expected = vec![
+            100.0, 123.6, 138.2, 150.0, 161.8, 178.9, 200.0, 227.2, 241.4, 261.8,
+        ];
+        assert_eq!(result, expected);
+
+        let kind = "short";
+        let result = fibonacci_analysis(support, resistance, kind, trend, places);
+        let expected = vec![
+            261.8, 241.4, 227.2, 200.0, 178.9, 161.8, 150.0, 138.2, 123.6, 100.0,
+        ];
+        assert_eq!(result, expected);
+    }
+    #[test]
+    fn test_determine_fib_support() {
+        let mut value_with_fibs = vec![
+            {
+                let mut map = HashMap::new();
+                map.insert("fib".to_string(), 0.236);
+                map.insert("value".to_string(), 123.6);
+                map
+            },
+            {
+                let mut map = HashMap::new();
+                map.insert("fib".to_string(), 0.382);
+                map.insert("value".to_string(), 138.2);
+                map
+            },
+        ];
+
+        let places = "%.1f";
+        let mut result = determine_fib_support(value_with_fibs, places);
+
+        let expected_support = 100.0; // Adjust based on expected calculation
+        let expected_resistance = 200.0; // Adjust based on expected calculation
+
+        assert_eq!(result.get("support").unwrap(), &expected_support);
+        assert_eq!(result.get("resistance").unwrap(), &expected_resistance);
+
+        value_with_fibs = vec![
+            {
+                let mut map = HashMap::new();
+                map.insert("fib".to_string(), 0.5);
+                map.insert("value".to_string(), 150.0);
+                map
+            },
+            {
+                let mut map = HashMap::new();
+                map.insert("fib".to_string(), 0.618);
+                map.insert("value".to_string(), 161.8);
+                map
+            },
+        ];
+
+        let result = determine_fib_support(value_with_fibs, places);
+
+        let expected_support = 100.0; // Adjust based on expected calculation
+        let expected_resistance = 200.0; // Adjust based on expected calculation
+
+        assert_eq!(result.get("support").unwrap(), &expected_support);
+        assert_eq!(result.get("resistance").unwrap(), &expected_resistance);
+    }
+
+     #[test]
+    fn test_extend_fibonacci() {
+        let support = 50000.0;
+        let resistance = 60000.0;
+        let focus = 52300.0;
+        let kind = "long";
+        let trend = "long";
+        let places = "%.1f";
+        let high = 1.0;
+        let low = 0.0;
+
+        let result = extend_fibonacci(support, resistance, Some(focus), kind, trend, places, high, low);
+        let expected_support = 50000.0; // Replace with the expected support value
+        let expected_resistance = 52360.0; // Replace with the expected resistance value
+        assert_eq!(result.get("support").unwrap(), &expected_support);
+        assert_eq!(result.get("resistance").unwrap(), &expected_resistance);
+
+       
     }
 }

@@ -130,7 +130,7 @@ def build_config(app_config: AppConfig, params: ParamType):
         support=params.get("support") or app_config.support,
         resistance=params.get("resistance") or app_config.resistance,
         price_places=app_config.price_places or params.get("price_places"),
-        decimal_places=params["decimal_places"],
+        decimal_places=params.get("decimal_places") or app_config.decimal_places,
         percent_change=app_config.percent_change / app_config.tradeSplit,
         risk_per_trade=working_risk,
         increase_position=params["increase"],

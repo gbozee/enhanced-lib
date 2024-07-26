@@ -11,18 +11,18 @@ use crate::utils::{
 // Define the TradeInstanceType struct
 #[derive(Debug, Clone)]
 pub struct TradeInstanceType {
-    entry: f64,
-    risk: f64,
-    quantity: f64,
-    sell_price: f64,
-    incurred_sell: f64,
-    stop: f64,
-    pnl: f64,
-    fee: f64,
-    net: f64,
-    incurred: f64,
-    stop_percent: f64,
-    rr: i32,
+    pub entry: f64,
+    pub risk: f64,
+    pub quantity: f64,
+    pub sell_price: f64,
+    pub incurred_sell: f64,
+    pub stop: f64,
+    pub pnl: f64,
+    pub fee: f64,
+    pub net: f64,
+    pub incurred: f64,
+    pub stop_percent: f64,
+    pub rr: i32,
 }
 
 fn _get_zone_nogen(current_price: f64, focus: f64, percent_change: f64, places: &str) -> Vec<f64> {
