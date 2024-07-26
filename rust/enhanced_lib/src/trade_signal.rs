@@ -576,10 +576,19 @@ impl Signal {
             let mut limit_orders: Vec<f64> = Vec::new();
             let mut market_orders: Vec<f64> = Vec::new();
             for &x in trade_zones.iter().skip(1) {
-                if x <= self.to_f(current_price) {
-                    limit_orders.push(x);
-                } else {
-                    market_orders.push(x);
+                if kind == "long" {
+                    if x <= self.to_f(current_price) {
+                        limit_orders.push(x);
+                    } else {
+                        market_orders.push(x);
+                    }
+                }
+                if kind == "short" {
+                    if x >= self.to_f(current_price) {
+                        limit_orders.push(x);
+                    } else {
+                        market_orders.push(x);
+                    }
                 }
             }
             if kind == "short" {
@@ -645,6 +654,7 @@ impl Signal {
             }
             let mut total_orders = limit_trades;
             total_orders.extend(market_trades);
+
             if self.minimum_size > 0.0 {
                 let greater_than_min_size: Vec<HashMap<String, f64>> = total_orders
                     .iter()
@@ -709,6 +719,114 @@ impl Signal {
         } else {
             self.zone_risk as f64 / number_of_orders as f64
         }
+    }
+
+    pub fn get_bulk_trade_zones(
+        &mut self,
+        current_price: f64,
+        kind: &str,
+        limit: bool,
+    ) -> Vec<HashMap<String, f64>> {
+        let futures = self.get_future_zones(current_price, kind);
+        let original = self.zone_risk;
+        if !futures.is_empty() {
+            let mut trade_zones = futures.clone();
+            if self.resistance > 0.0 {
+                trade_zones.retain(|&x| x <= self.resistance);
+                if kind == "short" {
+                    trade_zones.sort_by(|a, b| b.partial_cmp(a).unwrap());
+                }
+            }
+
+            if !trade_zones.is_empty() {
+                let stop_loss = trade_zones[0];
+                let result = self.process_orders(current_price, stop_loss, &trade_zones, kind);
+                if result.is_empty() {
+                    if self.zone_risk == 1 && futures.len() > 100 {
+                        return vec![];
+                    }
+                    if kind == "long" {
+                        if let Some(m_z) = self.get_margin_range(futures[0]) {
+                            if m_z.0 < self.to_f(current_price) {
+                                return self.get_bulk_trade_zones(m_z.1, kind, limit);
+                            }
+                        }
+                    }
+                }
+                self.zone_risk = original;
+                return result;
+            }
+        }
+        self.zone_risk = original;
+        vec![]
+    }
+
+    pub fn default_build_entry(
+        &self,
+        entry_price: f64,
+        stop_loss: f64,
+        risk: f64,
+        pnl: Option<f64>,
+        kind: &str,
+        stop_percent: Option<f64>,
+        no_of_trades: Option<u32>,
+        take_profit: Option<f64>,
+        current_entry: Option<f64>,
+        current_quantity: f64,
+        support: Option<f64>,
+        resistance: Option<f64>,
+    ) -> Vec<HashMap<String, f64>> {
+        let mut _stop_loss = stop_loss;
+        let mut _entry_price = entry_price;
+        let mut _resistance = resistance;
+
+        if _stop_loss == 0.0 {
+            if let Some(sp) = stop_percent {
+                _stop_loss = if kind == "long" {
+                    _entry_price * (1.0 + sp).powi(-1)
+                } else {
+                    _entry_price * (1.0 + sp)
+                };
+            }
+        }
+
+        let percent_change = if _stop_loss != 0.0 {
+            (f64::max(_entry_price, _stop_loss) / f64::min(_entry_price, _stop_loss)) - 1.0
+        } else {
+            self.percent_change
+        };
+
+        let _no_of_trades = no_of_trades.unwrap_or(self.risk_reward);
+        let risk_per_trade = risk / self.risk_reward as f64;
+
+        let derived_config = Signal {
+            percent_change,
+            focus: _entry_price,
+            resistance: _resistance.unwrap_or(entry_price * (1.0 + percent_change).powi(5)),
+            risk_per_trade,
+            risk_reward: _no_of_trades,
+            minimum_pnl: pnl.unwrap_or(0.0),
+            take_profit: take_profit.or(self.take_profit),
+            support: if kind == "long" {
+                _stop_loss
+            } else {
+                support.unwrap_or(self.support)
+            },
+            ..self.clone()
+        };
+
+        let mut instance = Signal { ..derived_config };
+        let result = instance.get_bulk_trade_zones(_entry_price, kind, false);
+
+        let best_transform = |x: &HashMap<String, f64>| -> bool {
+            if kind == "long" {
+                x["entry"] > x["stop"] + 0.5
+            } else {
+                x["entry"] + 0.5 < x["stop"]
+            }
+        };
+
+        result.into_iter().filter(best_transform).collect()
     }
 }
 
@@ -835,6 +953,70 @@ mod tests {
         ];
         let result = signal.get_future_zones(67800.0, "short");
         assert_eq!(result, expected_output);
+
+        // get_bulk_trade_zones tests
+        let expected_output = vec![
+            67684.0, 67737.9, 67791.8, 67845.7, 67899.6, 67953.5, 68007.4, 68061.3, 68115.2,
+            68169.1, 68223.0, 68276.9, 68330.8, 68384.7, 68438.6, 68492.5, 68546.4, 68600.3,
+            68654.2, 68708.1, 68762.0, 68815.9, 68869.8, 68923.7, 68977.6, 69031.5, 69085.4,
+            69139.3, 69193.2, 69247.1, 69301.0, 69354.9, 69408.8, 69462.7, 69516.6,
+        ];
+        let result = signal.get_bulk_trade_zones(67800.0, "long", false);
+        let expected_result: Vec<f64> = result.iter().map(|item| item["entry"]).collect();
+        assert_eq!(expected_result, expected_output);
+
+        let expected_output = vec![
+            // Add expected output here
+            69708.9, 69653.3, 69597.9, 69542.4, 69487.0, 69431.6, 69376.3, 69321.1, 69265.8,
+            69210.6, 69155.5, 69100.4, 69045.4, 68990.3, 68935.4, 68880.5, 68825.6, 68770.8,
+            68716.0, 68661.2, 68606.5, 68551.9, 68497.2, 68442.7, 68388.1, 68333.7, 68279.2,
+            68224.8, 68170.5, 68116.2, 68061.9, 68007.7, 67953.5, 67899.3, 67845.2,
+        ];
+        let result = signal.get_bulk_trade_zones(67800.0, "short", true);
+        let expected_result: Vec<f64> = result.iter().map(|item| item["entry"]).collect();
+        assert_eq!(expected_result, expected_output);
+
+        // default_build_entry tests
+        let entry_price = 67800.0;
+        let stop_loss = 67600.0;
+        let risk = 100.0;
+        let pnl = Some(50.0);
+        let kind = "long";
+        let stop_percent = Some(0.01);
+        let no_of_trades = Some(5);
+        let take_profit = Some(70000.0);
+        let current_entry = None;
+        let current_quantity = 0.0;
+        let support = Some(67500.0);
+        let resistance = Some(70500.0);
+
+        let result = signal.default_build_entry(
+            entry_price,
+            stop_loss,
+            risk,
+            pnl,
+            kind,
+            stop_percent,
+            no_of_trades,
+            take_profit,
+            current_entry,
+            current_quantity,
+            support,
+            resistance,
+        );
+
+        // Define the expected output based on the logic of the function
+        let expected_output = vec![
+            67640.0,
+            67680.0,
+            67720.0,
+            67760.0,
+            67800.0,
+            // Add more expected trades here based on the logic
+        ];
+
+        let result_entries: Vec<f64> = result.iter().map(|x| x["entry"]).collect();
+        assert_eq!(result_entries, expected_output);
     }
 
     // Add more tests for other methods...

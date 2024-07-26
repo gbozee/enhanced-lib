@@ -30,7 +30,6 @@ def test_trade_signal_initialization(trade_signal):
     assert trade_signal.budget == 1000.0
 
 
-
 @pytest.fixture
 def n_trade_signal():
     return TradeSignal(
@@ -445,3 +444,130 @@ def test_signal_creation(n_trade_signal):
     ]
     result = signal.get_future_zones(67800.0, kind="short")
     assert result == expected_output
+
+
+def test_get_bulk_trade_zones(n_trade_signal):
+    signal = n_trade_signal
+    expected_output = [
+        67684.0,
+        67737.9,
+        67791.8,
+        67845.7,
+        67899.6,
+        67953.5,
+        68007.4,
+        68061.3,
+        68115.2,
+        68169.1,
+        68223.0,
+        68276.9,
+        68330.8,
+        68384.7,
+        68438.6,
+        68492.5,
+        68546.4,
+        68600.3,
+        68654.2,
+        68708.1,
+        68762.0,
+        68815.9,
+        68869.8,
+        68923.7,
+        68977.6,
+        69031.5,
+        69085.4,
+        69139.3,
+        69193.2,
+        69247.1,
+        69301.0,
+        69354.9,
+        69408.8,
+        69462.7,
+        69516.6,
+    ]
+    result = signal.get_bulk_trade_zones(67800.0, "long", False)
+    expected_result = [item["entry"] for item in result]
+    assert expected_result == expected_output
+
+    result = signal.get_bulk_trade_zones(67800.0, "short", True)
+    expected_result = [item["entry"] for item in result]
+    assert expected_result == [
+        69708.9,
+        69653.3,
+        69597.9,
+        69542.4,
+        69487.0,
+        69431.6,
+        69376.3,
+        69321.1,
+        69265.8,
+        69210.6,
+        69155.5,
+        69100.4,
+        69045.4,
+        68990.3,
+        68935.4,
+        68880.5,
+        68825.6,
+        68770.8,
+        68716.0,
+        68661.2,
+        68606.5,
+        68551.9,
+        68497.2,
+        68442.7,
+        68388.1,
+        68333.7,
+        68279.2,
+        68224.8,
+        68170.5,
+        68116.2,
+        68061.9,
+        68007.7,
+        67953.5,
+        67899.3,
+        67845.2,
+    ]
+
+
+def test_default_build_entry(n_trade_signal):
+    signal = n_trade_signal
+    entry_price = 67800.0
+    stop_loss = 67600.0
+    risk = 100.0
+    pnl = 50.0
+    kind = "long"
+    stop_percent = 0.01
+    no_of_trades = 5
+    take_profit = 70000.0
+    current_entry = None
+    current_quantity = 0.0
+    support = 67500.0
+    resistance = 70500.0
+
+    result = signal.default_build_entry(
+        entry_price=entry_price,
+        stop_loss=stop_loss,
+        risk=risk,
+        pnl=pnl,
+        kind=kind,
+        stop_percent=stop_percent,
+        no_of_trades=no_of_trades,
+        take_profit=take_profit,
+        current_entry=current_entry,
+        current_quantity=current_quantity,
+        support=support,
+        resistance=resistance,
+    )
+
+    # Define the expected output based on the logic of the function
+    expected_output = [
+        67640.0,
+        67680.0,
+        67720.0,
+        67760.0,
+        67800.0,
+        # Add more expected trades here based on the logic
+    ]
+
+    assert [x['entry'] for x in result] == expected_output
