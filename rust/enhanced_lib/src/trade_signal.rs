@@ -653,11 +653,10 @@ impl Signal {
                     .filter(|&x| x["quantity"] >= self.minimum_size)
                     .cloned()
                     .collect();
-                let mut less_than_min_size: Vec<HashMap<String, f64>> = total_orders
+                let mut less_than_min_size: Vec<Vec<HashMap<String, f64>>> = total_orders
                     .iter()
                     .filter(|&x| x["quantity"] < self.minimum_size)
-                    .cloned()
-                    .collect();
+                    .cloned().collect();
                 if less_than_min_size.is_empty() {
                     return greater_than_min_size;
                 }
