@@ -76,3 +76,4 @@ startup.sh
 demo 
 venv*
 rust/enhanced_lib/target
+zig/zig_cache
