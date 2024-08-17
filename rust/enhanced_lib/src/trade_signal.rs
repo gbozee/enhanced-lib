@@ -9,7 +9,7 @@ use crate::utils::{
 };
 
 // Define the TradeInstanceType struct
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TradeInstanceType {
     pub entry: f64,
     pub risk: f64,
@@ -23,6 +23,10 @@ pub struct TradeInstanceType {
     pub incurred: f64,
     pub stop_percent: f64,
     pub rr: i32,
+    pub avg_entry: Option<f64>,
+    pub avg_size: Option<f64>,
+    pub neg_pnl: Option<f64>,
+    pub start_entry: Option<f64>,
 }
 
 fn _get_zone_nogen(current_price: f64, focus: f64, percent_change: f64, places: &str) -> Vec<f64> {
@@ -457,7 +461,7 @@ impl Signal {
         let considered: Vec<usize> = arr
             .iter()
             .enumerate()
-            .filter_map(|(i, &x)| if i > index { Some(i) } else { None })
+            .filter_map(|(i, &_x)| if i > index { Some(i) } else { None })
             .collect();
         let mut with_quantity: Vec<HashMap<String, f64>> = Vec::new();
         for &x in &considered {
@@ -498,7 +502,7 @@ impl Signal {
             .collect();
         let multiplier = start as f64 - index as f64;
         let incured_fees = fees.iter().sum::<f64>() + previous_risks.iter().sum::<f64>();
-        let lost_risk = fees.len() as f64 * risk;
+        // let lost_risk = fees.len() as f64 * risk;
         let quantity = determine_position_size(&PositionSizeParams {
             entry: entry,
             stop: Some(stop),
@@ -526,7 +530,7 @@ impl Signal {
         } else {
             (pnl, sell_price)
         };
-        let risk_sell = sell_price;
+        let _risk_sell = sell_price;
         let incurred = self.to_df(incured_fees + new_fees, &self.decimal_places);
         let incurred_sell = if incurred > 0.0 {
             determine_close_price(entry, incurred, quantity, 1, kind)
@@ -572,7 +576,7 @@ impl Signal {
         }
         if number_of_orders > 0 {
             let risk_per_trade = self.get_risk_per_trade(number_of_orders);
-            let allowed_spread = self.percent_change / 100.0;
+            // let allowed_spread = self.percent_change / 100.0;
             let mut limit_orders: Vec<f64> = Vec::new();
             let mut market_orders: Vec<f64> = Vec::new();
             for &x in trade_zones.iter().skip(1) {
@@ -683,6 +687,7 @@ impl Signal {
                         .map(|y| {
                             let mut map = HashMap::new();
                             map.insert("price".to_string(), y["entry"]);
+                            map.insert("quantity".to_string(), y["quantity"]);
                             map
                         })
                         .collect();
@@ -690,6 +695,11 @@ impl Signal {
                     let mut map = HashMap::new();
                     map.insert("entry".to_string(), z["price"]);
                     map.insert("quantity".to_string(), z["quantity"]);
+                    map.insert("sell_price".to_string(), x[0]["sell_price"]);
+                    // map.insert("incurred_sell".to_string(), x[0]["incurred_sell"]);
+                    // map.insert("fee".to_string(), x[0]["fee"]);
+                    // map.insert("pnl".to_string(), x[0]["pnl"]);
+                    map.insert("stop".to_string(), x[0]["stop"]);
                     map.insert(
                         "risk".to_string(),
                         to_f(
@@ -771,8 +781,8 @@ impl Signal {
         stop_percent: Option<f64>,
         no_of_trades: Option<u32>,
         take_profit: Option<f64>,
-        current_entry: Option<f64>,
-        current_quantity: f64,
+        _current_entry: Option<f64>,
+        _current_quantity: f64,
         support: Option<f64>,
         resistance: Option<f64>,
     ) -> Vec<HashMap<String, f64>> {
@@ -818,6 +828,7 @@ impl Signal {
         let mut instance = Signal { ..derived_config };
         let result = instance.get_bulk_trade_zones(_entry_price, kind, false);
 
+        
         let best_transform = |x: &HashMap<String, f64>| -> bool {
             if kind == "long" {
                 x["entry"] > x["stop"] + 0.5
@@ -825,6 +836,7 @@ impl Signal {
                 x["entry"] + 0.5 < x["stop"]
             }
         };
+        
 
         result.into_iter().filter(best_transform).collect()
     }

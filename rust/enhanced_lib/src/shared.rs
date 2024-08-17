@@ -10,22 +10,22 @@ use crate::utils::{
 
 #[derive(Debug, Clone)]
 pub struct TradingZoneType {
-    pub kind: String,
-    pub trend: String,
+    pub kind: Option<String>,
+    pub trend: Option<String>,
     pub entry: f64,
     pub stop: f64,
     pub no_of_trades: i32,
-    pub use_fibonacci: bool,
+    pub use_fibonacci: Option<bool>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone,Default)]
 pub struct TradingZoneDict {
     pub entry: f64,
     pub stop: f64,
     pub size: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone,Default)]
 pub struct AppConfig {
     pub fee: f64,
     pub risk_per_trade: f64,
@@ -47,6 +47,7 @@ pub struct AppConfig {
     pub strategy: String,
     pub as_array: Option<bool>,
     pub raw: Option<bool>,
+    pub use_fibonacci: Option<bool>,
 }
 
 impl AppConfig {
@@ -63,22 +64,23 @@ impl AppConfig {
         fields.into_iter().filter(|f| !exclude.contains(&f)).map(|f| f.to_string()).collect()
     }
 
-    pub fn get_trading_zones(&self, params: HashMap<String, f64>) -> Vec<HashMap<String, f64>> {
-        let kind = if params.get("kind").is_some() { params.get("kind").unwrap() } else { self.kind.clone() };
+    pub fn get_trading_zones(&self, params: TradingZoneType) -> Vec<TradingZoneDict> {
+        let kind = if params.kind.is_some() { params.kind.unwrap() } else { self.kind.clone() };
         let _entry = if kind == "long" { self.resistance } else { self.support };
         let _stop = if kind == "long" { self.support } else { self.resistance };
 
-        fn build_entry_and_stop(u: Vec<f64>, _kind: &str) -> Vec<HashMap<String, f64>> {
+        fn build_entry_and_stop(u: Vec<f64>, _kind: &str) -> Vec<TradingZoneDict> {
             let mut result = Vec::new();
             for (i, &o) in u.iter().enumerate() {
                 if (_kind == "long" && i < u.len() - 1) || (_kind == "short" && i > 0) {
-                    let mut map = HashMap::new();
+                    let mut map = TradingZoneDict::default();
+                   
                     if _kind == "long" {
-                        map.insert("stop".to_string(), o);
-                        map.insert("entry".to_string(), u[i + 1]);
+                        map.stop = o;
+                        map.entry = u[i + 1];
                     } else {
-                        map.insert("stop".to_string(), u[i - 1]);
-                        map.insert("entry".to_string(), o);
+                        map.stop = u[i - 1];
+                        map.entry = o;
                     }
                     result.push(map);
                 }
@@ -86,18 +88,18 @@ impl AppConfig {
             result
         }
 
-        let use_fibonacci = params.get("use_fibonacci").unwrap_or(&self.use_fibonacci).unwrap_or(false);
+        let use_fibonacci = params.use_fibonacci.unwrap_or(self.use_fibonacci.unwrap_or(false));
         if use_fibonacci {
             let price_places = self.price_places.as_deref().unwrap_or_default();
             let _r = fibonacci_analysis(self.support, self.resistance, &kind, "long", price_places);
-            return build_entry_and_stop(_r, &kind).into_iter()
-                .filter(|x| x.contains_key("entry") && x.contains_key("stop"))
-                .map(|x| TradingZoneDict {
-                    entry: *x.get("entry").unwrap(),
-                    stop: *x.get("stop").unwrap(),
-                    size: 0.0, // Placeholder, adjust as needed
-                })
-                .collect();
+            return build_entry_and_stop(_r, &kind)
+                // .filter(|x| x.contains_key("entry") && x.contains_key("stop"))
+                // .map(|x| TradingZoneDict {
+                //     entry: *x.get("entry").unwrap(),
+                //     stop: *x.get("stop").unwrap(),
+                //     size: 0.0, // Placeholder, adjust as needed
+                // })
+                // .collect();
         }
 
         let result = build_config(
@@ -105,23 +107,38 @@ impl AppConfig {
             ParamType {
                 entry: Some(params.entry),
                 stop: Some(params.stop),
-                kind: Some(params.trend),
+                kind: Some(params.trend.unwrap_or(self.kind.clone())),
                 no_of_trades: Some(params.no_of_trades),
                 ..Default::default()
             },
         );
 
-        result.into_iter()
+        match result {
+            BuildConfigType::VecHashMap(vec_hashmap)=>vec_hashmap.into_iter()
             .map(|x| {
-                let entry = if kind == "long" { x.entry } else { x.stop };
-                let stop = if kind == "long" { x.stop } else { x.entry };
-                HashMap::from([
-                    ("entry".to_string(), entry),
-                    ("stop".to_string(), stop),
-                    ("size".to_string(), x.quantity),
-                ])
+                let entry = if kind == "long" { x.get("entry").unwrap() } else { x.get("stop").unwrap() };
+                let stop = if kind == "long" { x.get("stop").unwrap() } else { x.get("entry").unwrap() };
+                TradingZoneDict {
+                    entry: *entry,
+                    stop: *stop,
+                    size: *x.get("quantity").unwrap(),
+                }
             })
-            .collect()
+            .collect(),
+            BuildConfigType::VecSignal(_)=> Vec::new()
+        }
+
+        // result.into_iter()
+        //     .map(|x| {
+        //         let entry = if kind == "long" { x.get("entry").unwrap() } else { x.get("stop").unwrap() };
+        //         let stop = if kind == "long" { x.get("stop").unwrap() } else { x.get("entry").unwrap() };
+        //         TradingZoneDict {
+        //             entry: *entry,
+        //             stop: *stop,
+        //             size: *x.get("quantity").unwrap(),
+        //         }
+        //     })
+        //     .collect()
     }
 }
 
@@ -142,7 +159,13 @@ pub struct ParamType {
     pub resistance: Option<f64>,
 }
 
-pub fn build_config(app_config: &AppConfig, params: ParamType) -> Vec<Signal> {
+pub enum BuildConfigType{
+     VecHashMap(Vec<HashMap<String, f64>>),
+    VecSignal(Vec<Signal>)
+    
+}
+
+pub fn build_config(app_config: &AppConfig, params: ParamType) -> BuildConfigType {
     let fee = app_config.fee / 100.0;
     let working_risk = params.risk.unwrap_or(app_config.risk_per_trade);
     let trade_no = params.no_of_trades.unwrap_or(app_config.risk_reward as i32);
@@ -164,11 +187,11 @@ pub fn build_config(app_config: &AppConfig, params: ParamType) -> Vec<Signal> {
     };
 
     if params.raw_instance.unwrap_or(false) {
-        return vec![instance];
+        return BuildConfigType::VecSignal(vec![instance]);
     }
 
     if params.stop.is_none() {
-        return vec![];
+        return BuildConfigType::VecHashMap(vec![]);
     }
 
     let condition = (params.entry.unwrap_or(0.0) > app_config.support && params.kind.as_deref() == Some("long"))
@@ -176,18 +199,38 @@ pub fn build_config(app_config: &AppConfig, params: ParamType) -> Vec<Signal> {
         && params.stop.unwrap_or(0.0) >= 0.999;
 
     if params.entry == params.stop || !condition {
-        return vec![];
+        return BuildConfigType::VecHashMap(vec![]);
     }
 
     let result = instance.default_build_entry(
         params.entry.unwrap_or(0.0),
         params.stop.unwrap_or(0.0),
         working_risk,
+        None,
         params.kind.as_deref().unwrap_or(&app_config.kind),
-        trade_no,
-    );
-
-    compute_total_average_for_each_trade(app_config, result, 0.0, 0.0)
+        None,
+        Some((trade_no as i32).try_into().unwrap()),
+        None,
+        None,
+        0.0,
+        None,
+        None
+    ).into_iter().map(|x| {
+        TradeInstanceType{
+            entry: x["entry"],
+            stop: x["stop"],
+            quantity: x["quantity"],
+            ..Default::default()
+        }
+    }).collect();
+    let r = compute_total_average_for_each_trade(app_config, result, 0.0, 0.0).into_iter().map(|x| {
+        let mut map = HashMap::new();
+        map.insert("entry".to_string(), x.entry);
+        map.insert("stop".to_string(), x.stop);
+        map.insert("quantity".to_string(), x.quantity);
+        map
+    }).collect();
+    BuildConfigType::VecHashMap(r)
 }
 
 #[derive(Debug, Clone)]
@@ -199,19 +242,24 @@ pub struct AvgType {
 
 pub fn build_avg(
     _trades: Vec<HashMap<String, f64>>,
-    kind: &str,
+    _kind: &str,
     decimal_places: &str,
     price_places: &str,
 ) -> AvgType {
     assert!(!_trades.is_empty());
-    let avg = determine_average_entry_and_size(&_trades, decimal_places, price_places);
-    avg
+    let avg = determine_average_entry_and_size(_trades, decimal_places, price_places);
+    
+    AvgType{
+        price: *avg.get("price").unwrap(),
+        quantity: *avg.get("quantity").unwrap(),
+        pnl: *avg.get("pnl").unwrap_or(&0.0),
+    }
 }
 
 pub fn compute_total_average_for_each_trade(
     app_config: &AppConfig,
     trades: Vec<TradeInstanceType>,
-    current_qty: f64,
+    _current_qty: f64,
     _current_entry: f64,
 ) -> Vec<TradeInstanceType> {
     let take_profit = if app_config.kind == "long" {
@@ -235,17 +283,19 @@ pub fn compute_total_average_for_each_trade(
 
     let less: Vec<_> = trades.iter().filter(|x| kind_condition(x, None, None, None)).cloned().collect();
 
-    let avg_condition = |x: &TradeInstanceType| {
+    let _trades = trades.clone();
+
+    let avg_condition = |x: TradeInstanceType| {
         let considered: Vec<_> = if kind == "long" {
-            trades.iter().filter(|y| y.entry > current_entry).cloned().collect()
+            _trades.iter().filter(|y| y.entry > current_entry).cloned().collect()
         } else {
-            trades.iter().filter(|y| y.entry < current_entry).cloned().collect()
+            _trades.iter().filter(|y| y.entry < current_entry).cloned().collect()
         };
 
         let remaining: Vec<_> = less.iter().filter(|v| kind_condition(v, Some(x.entry), Some(|a, b| a >= b), Some(|a, b| a <= b))).cloned().collect();
 
         if remaining.is_empty() {
-            return TradeInstanceType { pnl: None, ..x.clone() };
+            return TradeInstanceType { pnl: 0.0, ..x.clone() };
         }
 
         let start = if kind == "long" {
@@ -269,7 +319,7 @@ pub fn compute_total_average_for_each_trade(
             app_config.decimal_places.as_deref().unwrap_or_default(),
         );
 
-        let mut _pnl = x.pnl;
+        let mut _pnl = Some(x.pnl);
         let mut sell_price = x.sell_price;
         let mut loss = 0.0;
 
@@ -282,7 +332,7 @@ pub fn compute_total_average_for_each_trade(
         TradeInstanceType {
             avg_entry: Some(avg_entry.price),
             avg_size: Some(avg_entry.quantity),
-            pnl: Some(to_f(_pnl.unwrap_or(0.0), app_config.decimal_places.as_deref().unwrap_or_default())),
+            pnl: to_f(_pnl.unwrap_or(0.0), app_config.decimal_places.as_deref().unwrap_or_default()),
             neg_pnl: Some(to_f(loss, app_config.decimal_places.as_deref().unwrap_or_default())),
             sell_price,
             start_entry: Some(current_entry),
@@ -301,45 +351,60 @@ mod tests {
     #[test]
     fn test_build_config() {
         let app_config = AppConfig {
-            fee: 0.08,
-            risk_per_trade: 1.325,
-            risk_reward: 35,
-            focus: 67629.3,
+            fee: 0.06,
+            risk_per_trade: 4.0,
+            risk_reward: 4,
+            focus: 29200.0,
             budget: 2000.0,
-            support: 65858.0,
-            resistance: 70495.0,
-            percent_change: 0.027906543465628042,
-            trade_split: 1.0,
+            support: 45000.0,
+            resistance: 66660.0,
+            percent_change: 0.0,
+            trade_split: 8.0,
             take_profit: None,
-            kind: "long".to_string(),
-            entry: 67800.0,
-            stop: 67600.0,
-            min_size: 0.004,
+            kind: "short".to_string(),
+            entry: 69040.0,
+            stop: 64280.0,
+            min_size: 0.003,
             minimum_size: None,
             price_places: Some("%.1f".to_string()),
             decimal_places: Some("%.3f".to_string()),
             strategy: "quantity".to_string(),
-            as_array: Some(false),
-            raw: Some(false),
+            as_array: None,
+            raw: None,
+            ..Default::default()
         };
 
         let param_type = ParamType {
-            take_profit: None,
-            entry: Some(67800.0),
+            take_profit: Some(app_config.entry),
+            entry: Some(app_config.entry),
             risk: None,
-            stop: Some(67600.0),
-            risk_reward: None,
+            stop: Some(app_config.stop),
+            risk_reward: Some(30),
             raw_instance: Some(false),
-            kind: Some("long".to_string()),
-            no_of_trades: None,
-            increase: Some(false),
-            price_places: None,
-            decimal_places: None,
+            kind: Some(app_config.kind.clone()),
+            no_of_trades: Some(30),
+            increase: Some(true),
+            price_places: app_config.price_places.clone(),
+            decimal_places: app_config.decimal_places.clone(),
             support: None,
             resistance: None,
         };
 
         let result = build_config(&app_config, param_type);
+
+        let result_vec = match result {
+            BuildConfigType::VecHashMap(vec_hashmap)=>vec_hashmap.into_iter()
+            .map(|x| {
+                let mut map = HashMap::new();
+                map.insert("entry".to_string(), *x.get("entry").unwrap());
+                map.insert("stop".to_string(), *x.get("stop").unwrap());
+                map.insert("quantity".to_string(), *x.get("quantity").unwrap());
+                map.insert("avg_entry".to_string(), *x.get("avg_entry").unwrap_or(&0.0));
+                map
+            })
+            .collect(),
+            BuildConfigType::VecSignal(_)=> Vec::new()
+        };
 
         // Define the expected output based on the logic of the function
         let expected_output = vec![
@@ -380,7 +445,9 @@ mod tests {
             67800.0,
         ];
 
-        let result_entries: Vec<f64> = result.iter().map(|x| x.avg_entry.unwrap()).collect();
+        
+
+        let result_entries: Vec<f64> = result_vec.iter().map(|x| *x.get("avg_entry").unwrap()).collect();
         assert_eq!(result_entries, expected_output);
     }
 }
