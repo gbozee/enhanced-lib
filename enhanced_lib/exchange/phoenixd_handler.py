@@ -76,3 +76,14 @@ class PhoenixdHandler:
 
         payload = {"lnurl": lnurl}
         return self.api_call("post", "/lnurlauth", payload)
+
+    def create_invoice(self, amount_sat: int, description: str, external_id: str = None, webhook_url: str = None):
+        data = {
+            "amountSat": amount_sat,
+            "description": description
+        }
+        if external_id:
+            data["externalId"] = external_id
+        if webhook_url:
+            data["webhookUrl"] = webhook_url
+        return self.api_call("post", "/createinvoice", data)
