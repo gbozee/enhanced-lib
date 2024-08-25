@@ -177,3 +177,33 @@ class PhoenixdHandler:
         :return: dict containing the details of the incoming payment
         """
         return self.api_call("get", f"/payments/incoming/{payment_hash}")
+
+    def list_outgoing_payments(
+        self,
+        from_timestamp: int = 0,
+        to_timestamp: int = None,
+        limit: int = 20,
+        offset: int = 0,
+        all: bool = False,
+    ) -> dict:
+        """
+        List outgoing payments.
+
+        :param from_timestamp: start timestamp in millis from epoch, default 0
+        :param to_timestamp: end timestamp in millis from epoch, default now
+        :param limit: number of payments in the page, default 20
+        :param offset: page offset, default 0
+        :param all: also return payments that have failed
+        :return: dict containing the list of outgoing payments
+        """
+        params = {
+            "from": from_timestamp,
+            "limit": limit,
+            "offset": offset,
+            "all": str(all).lower(),
+        }
+
+        if to_timestamp is not None:
+            params["to"] = to_timestamp
+
+        return self.api_call("get", "/payments/outgoing", params)
