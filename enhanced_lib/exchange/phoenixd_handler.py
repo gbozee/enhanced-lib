@@ -124,3 +124,11 @@ class PhoenixdHandler:
             data['message'] = payload['message']
         
         return self.api_call('post', '/paylnaddress', data)
+
+    def send_to_address(self, amount_sat: int, address: str, feerate_sat_byte: int):
+        data = {
+            'amountSat': amount_sat,
+            'address': address,
+            'feerateSatByte': feerate_sat_byte
+        }
+        return self.api_call('post', '/sendtoaddress', data)
