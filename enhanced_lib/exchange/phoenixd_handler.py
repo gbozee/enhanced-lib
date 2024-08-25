@@ -59,6 +59,10 @@ class PhoenixdHandler:
         return self.api_call("post", "/decodeoffer", {"offer": offer})
 
     def lnurl_pay(self, lnurl: str, amount_sat: int):
+        # Remove 'lightning:' prefix if present
+        if lnurl.lower().startswith('lightning:'):
+            lnurl = lnurl[10:]
+        
         return self.api_call(
             "post",
             "/lnurlpay",
