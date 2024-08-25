@@ -132,3 +132,36 @@ class PhoenixdHandler:
             'feerateSatByte': payload['fee']
         }
         return self.api_call('post', '/sendtoaddress', data)
+
+    def list_incoming_payments(self, 
+                               from_timestamp: int = 0, 
+                               to_timestamp: int = None, 
+                               limit: int = 20, 
+                               offset: int = 0, 
+                               all: bool = False, 
+                               external_id: str = None) -> dict:
+        """
+        List incoming payments.
+
+        :param from_timestamp: start timestamp in millis from epoch, default 0
+        :param to_timestamp: end timestamp in millis from epoch, default now
+        :param limit: number of payments in the page, default 20
+        :param offset: page offset, default 0
+        :param all: also return unpaid invoices
+        :param external_id: only include payments that use this external id
+        :return: dict containing the list of incoming payments
+        """
+        params = {
+            'from': from_timestamp,
+            'limit': limit,
+            'offset': offset,
+            'all': str(all).lower()
+        }
+        
+        if to_timestamp is not None:
+            params['to'] = to_timestamp
+        
+        if external_id is not None:
+            params['externalId'] = external_id
+
+        return self.api_call('get', '/payments/incoming', params)
