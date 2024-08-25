@@ -168,3 +168,12 @@ class PhoenixdHandler:
             params["externalId"] = external_id
 
         return self.api_call("get", "/payments/incoming", params)
+
+    def get_incoming_payment(self, payment_hash: str) -> dict:
+        """
+        Retrieve details of a specific incoming payment.
+
+        :param payment_hash: The payment hash of the incoming payment
+        :return: dict containing the details of the incoming payment
+        """
+        return self.api_call("get", f"/payments/incoming/{payment_hash}")
