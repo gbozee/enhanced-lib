@@ -94,3 +94,6 @@ class PhoenixdHandler:
         if payload.get("webhook_url"):
             data["webhookUrl"] = payload["webhook_url"]
         return self.api_call("post", "/createinvoice", data)
+
+    def get_offer(self):
+        return self.api_call("get", "/getoffer")
