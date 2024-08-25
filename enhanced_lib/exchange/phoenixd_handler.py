@@ -108,7 +108,9 @@ class PhoenixdHandler:
         return self.api_call("get", "/getlnaddress")
 
     def pay_invoice(self, payload: PayInvoiceType):
-        data = {"amountSat": payload["amount"], "invoice": payload["invoice"]}
+        data = {"invoice": payload["invoice"]}
+        if payload.get("amount"):
+            data["amountSat"] = payload["amount"]
         return self.api_call("post", "/payinvoice", data)
 
     def pay_offer(self, payload: PayInvoiceType):
@@ -119,9 +121,11 @@ class PhoenixdHandler:
         return self.api_call("post", "/payoffer", data)
 
     def pay_ln_address(self, payload: PayInvoiceType):
-        data = {"amountSat": payload["amount"], "address": payload["invoice"]}
+        data = {"address": payload["invoice"]}
         if payload.get("message"):
             data["message"] = payload["message"]
+        if payload.get('amount'):
+            data["amountSat"] = payload["amount"]
 
         return self.api_call("post", "/paylnaddress", data)
 
