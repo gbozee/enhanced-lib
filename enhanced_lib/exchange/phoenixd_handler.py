@@ -24,6 +24,7 @@ class PayInvoiceType(typing.TypedDict):
     message: str
     fee: int
 
+
 @dataclass
 class PhoenixdHandler:
     base_url: str
@@ -110,36 +111,38 @@ class PhoenixdHandler:
     def pay_invoice(self, payload: PayInvoiceType):
         data = {"amountSat": payload["amount"], "invoice": payload["invoice"]}
         return self.api_call("post", "/payinvoice", data)
-    
-    def pay_offer(self, payload:PayInvoiceType):
-        data = {'amountSat':payload['amount'],'offer':payload['invoice']}
-        if payload.get('message'):
-            data['message'] = payload['message']
-            
-        return self.api_call('post','/payoffer',data)
+
+    def pay_offer(self, payload: PayInvoiceType):
+        data = {"amountSat": payload["amount"], "offer": payload["invoice"]}
+        if payload.get("message"):
+            data["message"] = payload["message"]
+
+        return self.api_call("post", "/payoffer", data)
 
     def pay_ln_address(self, payload: PayInvoiceType):
-        data = {'amountSat': payload['amount'], 'address': payload['invoice']}
-        if payload.get('message'):
-            data['message'] = payload['message']
-        
-        return self.api_call('post', '/paylnaddress', data)
+        data = {"amountSat": payload["amount"], "address": payload["invoice"]}
+        if payload.get("message"):
+            data["message"] = payload["message"]
+
+        return self.api_call("post", "/paylnaddress", data)
 
     def send_to_address(self, payload: PayInvoiceType):
         data = {
-            'amountSat': payload['amount_sat'],
-            'address': payload['invoice'],
-            'feerateSatByte': payload['fee']
+            "amountSat": payload["amount_sat"],
+            "address": payload["invoice"],
+            "feerateSatByte": payload["fee"],
         }
-        return self.api_call('post', '/sendtoaddress', data)
+        return self.api_call("post", "/sendtoaddress", data)
 
-    def list_incoming_payments(self, 
-                               from_timestamp: int = 0, 
-                               to_timestamp: int = None, 
-                               limit: int = 20, 
-                               offset: int = 0, 
-                               all: bool = False, 
-                               external_id: str = None) -> dict:
+    def list_incoming_payments(
+        self,
+        from_timestamp: int = 0,
+        to_timestamp: int = None,
+        limit: int = 20,
+        offset: int = 0,
+        all: bool = False,
+        external_id: str = None,
+    ) -> dict:
         """
         List incoming payments.
 
@@ -152,16 +155,16 @@ class PhoenixdHandler:
         :return: dict containing the list of incoming payments
         """
         params = {
-            'from': from_timestamp,
-            'limit': limit,
-            'offset': offset,
-            'all': str(all).lower()
+            "from": from_timestamp,
+            "limit": limit,
+            "offset": offset,
+            "all": str(all).lower(),
         }
-        
-        if to_timestamp is not None:
-            params['to'] = to_timestamp
-        
-        if external_id is not None:
-            params['externalId'] = external_id
 
-        return self.api_call('get', '/payments/incoming', params)
+        if to_timestamp is not None:
+            params["to"] = to_timestamp
+
+        if external_id is not None:
+            params["externalId"] = external_id
+
+        return self.api_call("get", "/payments/incoming", params)
