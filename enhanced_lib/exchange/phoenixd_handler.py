@@ -53,8 +53,4 @@ class PhoenixdHandler:
         )
 
     def decode_invoice(self, invoice: str):
-        return self.api_call(
-            "post",
-            "/decodeinvoice",
-            {"invoice": invoice}
-        )
+        return self.api_call("post", "/decodeinvoice", {"invoice": invoice})
