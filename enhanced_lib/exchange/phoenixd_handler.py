@@ -11,6 +11,13 @@ class ChannelDetailsType(typing.TypedDict):
     address: str
 
 
+class CreateInvoiceType(typing.TypedDict):
+    amount: int
+    description: str
+    external_id: str
+    webhook_url: str
+
+
 @dataclass
 class PhoenixdHandler:
     base_url: str
@@ -77,13 +84,13 @@ class PhoenixdHandler:
         payload = {"lnurl": lnurl}
         return self.api_call("post", "/lnurlauth", payload)
 
-    def create_invoice(self, amount_sat: int, description: str, external_id: str = None, webhook_url: str = None):
+    def create_invoice(self, payload: CreateInvoiceType):
         data = {
-            "amountSat": amount_sat,
-            "description": description
+            "amountSat": payload["amount_sat"],
+            "description": payload["description"],
         }
-        if external_id:
-            data["externalId"] = external_id
-        if webhook_url:
-            data["webhookUrl"] = webhook_url
+        if payload.get("external_id"):
+            data["externalId"] = payload["external_id"]
+        if payload.get("webhook_url"):
+            data["webhookUrl"] = payload["webhook_url"]
         return self.api_call("post", "/createinvoice", data)
