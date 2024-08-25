@@ -57,3 +57,13 @@ class PhoenixdHandler:
 
     def decode_offer(self, offer: str):
         return self.api_call("post", "/decodeoffer", {"offer": offer})
+
+    def lnurl_pay(self, lnurl: str, amount_sat: int):
+        return self.api_call(
+            "post",
+            "/lnurlpay",
+            {
+                "lnurl": lnurl,
+                "amountSat": amount_sat
+            }
+        )
