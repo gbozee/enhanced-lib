@@ -207,3 +207,12 @@ class PhoenixdHandler:
             params["to"] = to_timestamp
 
         return self.api_call("get", "/payments/outgoing", params)
+
+    def get_outgoing_payment(self, payment_id: str) -> dict:
+        """
+        Retrieve details of a specific outgoing payment.
+
+        :param payment_id: The payment ID of the outgoing payment
+        :return: dict containing the details of the outgoing payment
+        """
+        return self.api_call("get", f"/payments/outgoing/{payment_id}")
