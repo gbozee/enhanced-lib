@@ -18,6 +18,12 @@ class CreateInvoiceType(typing.TypedDict):
     webhook_url: str
 
 
+class PayInvoiceType(typing.TypedDict):
+    amount: int
+    invoice: str
+    message: str
+
+
 @dataclass
 class PhoenixdHandler:
     base_url: str
@@ -97,3 +103,17 @@ class PhoenixdHandler:
 
     def get_offer(self):
         return self.api_call("get", "/getoffer")
+
+    def get_lightning_address(self):
+        return self.api_call("get", "/getlnaddress")
+
+    def pay_invoice(self, payload: PayInvoiceType):
+        data = {"amountSat": payload["amount"], "invoice": payload["invoice"]}
+        return self.api_call("post", "/payinvoice", data)
+    
+    def pay_offer(self, payload:PayInvoiceType):
+        data = {'amountSat':payload['amount'],'offer':payload['invoice']}
+        if payload.get('message'):
+            data['message'] = payload['message']
+            
+        return self.api_call('post','/payoffer',data)
