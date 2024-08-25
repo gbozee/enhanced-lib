@@ -51,5 +51,10 @@ class PhoenixdHandler:
                 "address": channel_details["address"],
             },
         )
-        
-    
+
+    def decode_invoice(self, invoice: str):
+        return self.api_call(
+            "post",
+            "/decodeinvoice",
+            {"invoice": invoice}
+        )
