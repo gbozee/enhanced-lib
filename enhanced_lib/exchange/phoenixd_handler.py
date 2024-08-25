@@ -23,6 +23,10 @@ class PayInvoiceType(typing.TypedDict):
     invoice: str
     message: str
 
+class SendToAddressType(typing.TypedDict):
+    amount_sat: int
+    address: str
+    feerate_sat_byte: int
 
 @dataclass
 class PhoenixdHandler:
@@ -125,10 +129,10 @@ class PhoenixdHandler:
         
         return self.api_call('post', '/paylnaddress', data)
 
-    def send_to_address(self, amount_sat: int, address: str, feerate_sat_byte: int):
+    def send_to_address(self, payload: SendToAddressType):
         data = {
-            'amountSat': amount_sat,
-            'address': address,
-            'feerateSatByte': feerate_sat_byte
+            'amountSat': payload['amount_sat'],
+            'address': payload['address'],
+            'feerateSatByte': payload['feerate_sat_byte']
         }
         return self.api_call('post', '/sendtoaddress', data)
