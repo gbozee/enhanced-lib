@@ -117,3 +117,13 @@ class PhoenixdHandler:
             data['message'] = payload['message']
             
         return self.api_call('post','/payoffer',data)
+
+    def pay_ln_address(self, amount_sat: int, address: str, message: str = None):
+        data = {
+            'amountSat': amount_sat,
+            'address': address
+        }
+        if message:
+            data['message'] = message
+        
+        return self.api_call('post', '/paylnaddress', data)
