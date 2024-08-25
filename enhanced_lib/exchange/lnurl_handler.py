@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 import asyncio
-from typing import Any, Optional,TypedDict
+from typing import Any, Optional, TypedDict
 import lnurl
 import json
 import hashlib
 import math
 import logging
+import requests
 from enhanced_lib.exchange.client import TradeClient, loop_helper
 from enhanced_lib.calculations.utils import to_f
 import secrets
@@ -236,6 +237,18 @@ class LnurlHandler:
         total_amount = invoice_amount + fee_msats
         amount_in_sats = math.ceil(total_amount / 1000)
         return self.service.withdraw_funds(owner, amount_in_sats, invoice)
+
+
+def get_wrapped_invoice(original_invoice: str):
+    response = requests.post(
+        "https://lnproxy.org/spec", json={"invoice": original_invoice}
+    )
+    if response.status_code < 400:
+        result = response.json()
+        if result.get('status') == 'ERROR':
+            raise Exception(result['reason'])
+        breakpoint()
+        return result["proxy_invoice"]
 
 
 def parse_username(email_or_name):

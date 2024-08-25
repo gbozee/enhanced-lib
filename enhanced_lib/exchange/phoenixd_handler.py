@@ -2,7 +2,6 @@ from dataclasses import dataclass
 import requests
 import typing
 import json
-from requests.auth import HTTPBasicAuth
 
 
 class ChannelDetailsType(typing.TypedDict):
@@ -31,20 +30,20 @@ class PhoenixdHandler:
     api_key: str
 
     def api_call(self, method: str, path: str, data: dict = None) -> dict:
-        headers = {"Content-Type": "application/json"}
         url = f"{self.base_url}{path}"
 
         if method.lower() == "get":
-            response = requests.get(
-                url, auth=HTTPBasicAuth("_", self.api_key), headers=headers, params=data
-            )
+            response = requests.get(url, auth=("", self.api_key), params=data)
         elif method.lower() == "post":
-            response = requests.post(url, headers=headers, json=data)
+            response = requests.post(url, auth=("", self.api_key), data=data)
         else:
             raise ValueError(f"Unsupported HTTP method: {method}")
-
         response.raise_for_status()
-        return response.json()
+        try:
+            result = response.json()
+            return result
+        except Exception:
+            return response.text
 
     def node_info(self):
         return self.api_call("get", "/getinfo")

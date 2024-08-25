@@ -127,18 +127,22 @@ def determine_pnl(
         difference = entry - close_price
     return difference * quantity
 
-fib_ranges = [0, 0.236, 0.382, 0.5, 0.618, 0.789, 1,1.272,1.414,1.618]
 
-def fibonacci_analysis(support: float, resistance: float, kind="long",trend='long', places="%.1f"):
+fib_ranges = [0, 0.236, 0.382, 0.5, 0.618, 0.789, 1, 1.272, 1.414, 1.618]
+
+
+def fibonacci_analysis(
+    support: float, resistance: float, kind="long", trend="long", places="%.1f"
+):
     swing_high = resistance if trend == "long" else support
     swing_low = support if trend == "long" else resistance
     fib_calc = lambda p, h, l: (p * (h - l)) + l
     ranges = fib_ranges
     fib_values = [fib_calc(x, swing_high, swing_low) for x in ranges]
     fib_values = [to_f(r, places) for r in fib_values]
-    if kind == 'short':
-        return list(reversed(fib_values)) if trend == 'long' else fib_values
-    return list(reversed(fib_values)) if trend == 'short' else fib_values
+    if kind == "short":
+        return list(reversed(fib_values)) if trend == "long" else fib_values
+    return list(reversed(fib_values)) if trend == "short" else fib_values
     return fib_values
 
 
@@ -238,6 +242,7 @@ def determine_expected_loss(
         ),
     }
 
+
 def get_decimal_places(number_string: str) -> int:
     parts = number_string.split(".")
     if len(parts) == 2:
@@ -246,35 +251,48 @@ def get_decimal_places(number_string: str) -> int:
         return 0
 
 
-def extend_fibonacci(support:float, resistance:float, focus=None, kind='long',trend='long',places='%.1f',high=1,low=0):
+def extend_fibonacci(
+    support: float,
+    resistance: float,
+    focus=None,
+    kind="long",
+    trend="long",
+    places="%.1f",
+    high=1,
+    low=0,
+):
     _focus = focus or resistance
-    values = fibonacci_analysis(support,resistance,kind=kind,trend=trend,places=places)
+    values = fibonacci_analysis(
+        support, resistance, kind=kind, trend=trend, places=places
+    )
     remaining_buy_zones = [i for i in values if i <= _focus]
     remaining_sell_zones = [i for i in values if i >= _focus]
     pairs = [
-        {
-            'fib':high,
-            'value': min(remaining_sell_zones)
-        },
-        {
-            'fib': low,
-            'value': min(remaining_buy_zones)
-        }
+        {"fib": high, "value": min(remaining_sell_zones)},
+        {"fib": low, "value": min(remaining_buy_zones)},
     ]
-    return determine_fib_support(pairs,places=places)
+    return determine_fib_support(pairs, places=places)
 
 
-def determine_fib_support(value_with_fibs:typing.List[dict],places='%.1f'):
+def determine_fib_support(value_with_fibs: typing.List[dict], places="%.1f"):
     import numpy as np
+
     A = []
     Y = []
     for i in value_with_fibs:
-        A.append([i['fib'],(1-i['fib'])])
-        Y.append(i['value'])
+        A.append([i["fib"], (1 - i["fib"])])
+        Y.append(i["value"])
     res = res = np.linalg.inv(A).dot(Y)
     return {
-    'support': to_f(np.min(res),places),
-    'resistance':to_f(np.max(res),places)
+        "support": to_f(np.min(res), places),
+        "resistance": to_f(np.max(res), places),
     }
 
+
 # def solve_simulaneous_equation(arr:list,)
+
+
+def determine_stop_and_tp(entry: float, size: float, pnl: float, kind="long"):
+    stop = entry - (entry * (pnl / (size * entry)))
+    tp = determine_close_price(entry, pnl, size, kind=kind)
+    return {'stop':to_f(stop,'%.1f'),'tp':to_f(tp,'%.1f')}
