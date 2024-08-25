@@ -68,3 +68,11 @@ class PhoenixdHandler:
             payload["amountSat"] = amount_sat
 
         return self.api_call("post", "/lnurlpay", payload)
+
+    def lnurl_auth(self, lnurl: str):
+        # Remove 'lightning:' prefix if present
+        if lnurl.lower().startswith("lightning:"):
+            lnurl = lnurl[10:]
+
+        payload = {"lnurl": lnurl}
+        return self.api_call("post", "/lnurlauth", payload)
