@@ -1048,3 +1048,15 @@ class TradeClient:
             "api/lightning/decode", "POST", {"invoice": params["invoice"]}
         )
         return result
+
+    def repay_loan_in_parent(self, params):
+        result = self.api_call(
+            "api/signals/transfer-repay-loan",
+            "POST",
+            {
+                "owner": params["owner"],
+                "parent": params["parent"],
+                "symbol": params["symbol"]
+            }
+        )
+        return result
