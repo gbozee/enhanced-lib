@@ -3,6 +3,10 @@ from datetime import datetime
 from typing import List, Dict, Any, TypedDict, Literal
 import requests
 import asyncio
+from .remote_action import RemoteAction
+from .account_parser import AccountParser
+
+ROOT = "your_root_value_here"  # Replace with the actual value
 
 
 async def loop_helper(callback):
@@ -652,8 +656,8 @@ class TradeClient:
         return result
 
     def analyzePosition(self, params: AnalyzePositionType):
-        instance = RemoteAction(params.owner, ROOT)
-        return instance.analyzeCurrentPostion(params.symbol, params.kind)
+        instance = RemoteAction(params["owner"], ROOT)
+        return instance.analyzeCurrentPostion(params["symbol"], params["kind"])
 
     def place_signal_orders(self, params: TradeSignalType):
         result = self.api_call(
