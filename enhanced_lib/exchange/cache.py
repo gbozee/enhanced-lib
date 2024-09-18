@@ -10,7 +10,7 @@ from ..calculations.future_config import (
     shared,
     determine_pnl,
 )
-from .account import Account
+from .account import Account, AccountKeys
 from .types import ExchangeInfo, OrderControl, Position, PositionKlass, PositionKind
 
 
@@ -25,6 +25,24 @@ class ExchangeCache:
         ]["payload"]["future"][self.symbol.lower()]
         self.config = self.get_future_config()
         self.margin_info = None
+
+    @classmethod
+    def initialize(cls, config_details, symbol: str, owner: str):
+        account = Account("", owner)
+        account.update_general_config(
+            "config", {symbol.upper(): config_details.get("config")}
+        )
+        account.update_general_config(
+            AccountKeys.POSITION_INFORMATION,
+            {
+                symbol.upper(): {
+                    "payload": {
+                        "future": {symbol.lower(): config_details.get("exchange_info")}
+                    }
+                }
+            },
+        )
+        return cls(account, symbol)
 
     @property
     def future_instance(self):
@@ -809,12 +827,16 @@ def compute_possible_optimum_entries(
                 break
             result.append(
                 {
-                    "entry": max([x["entry"] for x in ppr[1]])
-                    if kind == "long"
-                    else min([x["entry"] for x in ppr[1]]),
-                    "stop": min([x["stop"] for x in ppr[1]])
-                    if kind == "long"
-                    else max([x["stop"] for x in ppr[1]]),
+                    "entry": (
+                        max([x["entry"] for x in ppr[1]])
+                        if kind == "long"
+                        else min([x["entry"] for x in ppr[1]])
+                    ),
+                    "stop": (
+                        min([x["stop"] for x in ppr[1]])
+                        if kind == "long"
+                        else max([x["stop"] for x in ppr[1]])
+                    ),
                     "loss": last_stop["neg.pnl"],
                     "risk_reward": ppr[0],
                     "profit": last_stop["pnl"],
