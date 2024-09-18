@@ -4,6 +4,8 @@ from typing import List, Dict, Any, TypedDict, Literal
 import requests
 import asyncio
 
+ROOT = "your_root_value_here"  # Replace with the actual value
+
 
 async def loop_helper(callback):
     loop = asyncio.get_event_loop()
@@ -652,8 +654,7 @@ class TradeClient:
         return result
 
     def analyzePosition(self, params: AnalyzePositionType):
-        instance = RemoteAction(params.owner, ROOT)
-        return instance.analyzeCurrentPostion(params.symbol, params.kind)
+        pass
 
     def place_signal_orders(self, params: TradeSignalType):
         result = self.api_call(
@@ -1046,5 +1047,17 @@ class TradeClient:
     def lightning_decode(self, params):
         result = self.api_call(
             "api/lightning/decode", "POST", {"invoice": params["invoice"]}
+        )
+        return result
+
+    def repay_loan_in_parent(self, params):
+        result = self.api_call(
+            "api/signals/transfer-repay-loan",
+            "POST",
+            {
+                "owner": params["owner"],
+                "parent": params["parent"],
+                "symbol": params["symbol"]
+            }
         )
         return result

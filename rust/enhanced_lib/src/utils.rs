@@ -511,7 +511,7 @@ mod tests {
         ];
 
         let places = "%.1f";
-        let mut result = determine_fib_support(value_with_fibs, places);
+        let result = determine_fib_support(value_with_fibs, places);
 
         let expected_support = 100.0; // Adjust based on expected calculation
         let expected_resistance = 200.0; // Adjust based on expected calculation
