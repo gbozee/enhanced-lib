@@ -917,6 +917,7 @@ class TradeClient:
                     "base": params["base"],
                     "quote": params["quote"],
                 },
+                'mode': params.get('mode') or 'isolated',
                 "symbol": params["symbol"],
             },
         )
@@ -942,6 +943,7 @@ class TradeClient:
                     "margin": margin_balance,
                 },
                 "symbol": params["symbol"],
+                'mode': params.get('mode') or 'isolated'
             },
         )
         return result["data"]
@@ -962,6 +964,7 @@ class TradeClient:
                 },
                 "type": params.get("type"),
                 "symbol": params["symbol"],
+                'mode': params.get('mode') or 'isolated'
             },
         )
         return result["data"]
@@ -979,6 +982,19 @@ class TradeClient:
                 "order": {
                     "cancel": True,
                 },
+                "symbol": params["symbol"],
+                'mode': params.get('mode') or 'isolated'
+            },
+        )
+        return result["data"]
+
+    def margin_actions(self, params: NewTradeType):
+        result = self.api_call(
+            f"api/{params['owner']}/margin-actions",
+            "POST",
+            {
+                "action": params['action'],
+                'mode': params.get('mode') or 'isolated',
                 "symbol": params["symbol"],
             },
         )
