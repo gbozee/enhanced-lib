@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Literal, Optional, TypedDict
+from typing import List, Literal, Optional, TypedDict, Any
 
 from ..calculations.utils import (
     determine_pnl,
@@ -116,10 +116,13 @@ class OrderDict(TypedDict):
     goodTillDate: Optional[int]
     time: Optional[int]
     updateTime: Optional[int]
+    positions: Optional["Position"]
+    open_orders: Optional[List[Any]]
     # cummulativeQuoteQty: Optional[str]
     # icebergQty: Optional[str]
     # isWorking: Optional[bool]
     # isIsolated: Optional[bool]
+
 
 class MarginOrderDict(TypedDict):
     orderId: Optional[int]
@@ -285,6 +288,118 @@ class Order:
     def stop_price(self):
         return float(self.stopPrice)
 
+    @property
+    def avg(self):
+        if self.open_orders:
+            return self.eval_avg_entry(self.get_open_orders())
+
+    @property
+    def kind(self):
+        return self.positionSide.lower() if self.positionSide else None
+
+    def get_orders(self, side: Literal["buy", "sell"]):
+        def condition(u):
+            if hasattr(u, "positionSide"):
+                return u.positionSide.lower() == self.kind
+            return True
+
+        return [x for x in self.open_orders if x.side.lower() == side and condition(x)]
+
+    def get_open_orders(
+        self,
+    ):
+        side = {
+            "long": "buy",
+            "short": "sell",
+        }
+        result = [x for x in self.get_orders(side[self.kind])]
+        result = sorted(result, key=lambda x: x.entry_price)
+        if self.kind == "long":
+            result = sorted(result, key=lambda x: x.entry_price, reverse=True)
+        return result
+
+    def eval_avg_entry(self, _open_orders: List["MarginOrder"]):
+        kind = self.kind
+        if kind:
+            position = getattr(self.positions, kind) if self.positions else None
+
+            if kind == "long":
+                open_orders = [
+                    order
+                    for order in _open_orders
+                    if order.entry_price >= self.entry_price
+                ]
+            else:  # short
+                open_orders = [
+                    order
+                    for order in _open_orders
+                    if order.entry_price <= self.entry_price
+                ]
+
+            total_size = sum(order.quantity for order in open_orders)
+            total_value = sum(
+                order.quantity * order.entry_price for order in open_orders
+            )
+
+            if position and position.size > 0:
+                total_size += position.size
+                total_value += position.size * position.entry_price
+
+            if total_size == 0:
+                return {"price": 0, "quantity": 0}  # No orders and no position
+
+            avg_entry_price = total_value / total_size
+
+            return {
+                "price": avg_entry_price,
+                "quantity": total_size,
+            }
+
+    def to_dict(self):
+        return {
+            "price": self.entry_price,
+            "quantity": self.quantity,
+            "kind": self.kind,
+            "avg": self.avg,
+            "side": self.side.lower(),
+            "stop": self.stop_price,
+            "type": self.type.lower(),
+            "order_id": self.orderId,
+            "r_profit": self.profit,
+            "loss": self.loss,
+            "diff": (self.loss + self.profit) if (self.loss and self.profit) else 0,
+        }
+
+    @property
+    def loss(self):
+        avg = self.avg
+        fee_rate = 0.05/100
+        if avg:
+            p = determine_pnl(
+                avg["price"], self.entry_price, avg["quantity"], kind=self.kind
+            )
+            fee = fee_rate * avg['price'] * avg['quantity']
+            if p <= 0:
+                return p - fee
+        return 0
+
+    @property
+    def profit(self):
+        reverse_kind = "short" if self.kind == "long" else "long"
+        position: Optional["Position"] = (
+            getattr(self.positions, reverse_kind) if self.positions else None
+        )
+        fee_rate = 0.02/100
+        if position:
+            p = determine_pnl(
+                position.entry_price, self.entry_price, position.size, kind=reverse_kind
+            )
+            if p > 0:
+                fee = fee_rate * position.entry_price * position.size
+                return p - fee
+        return 0
+
+
 @dataclass
 @inject_fields(MarginOrderDict)
 class MarginOrder:
@@ -431,12 +546,14 @@ class OrderStats:
             "last": last_order,
             "fees": to_f(fees, f"%.{places}f"),
             "liquidation": to_f(liquidation, f"%.{places}f"),
-            "loss": to_f(
-                determine_pnl(avg_entry, last_order, size, kind=position.kind),
-                f"%.{places}f",
-            )
-            if last_order
-            else 0,
+            "loss": (
+                to_f(
+                    determine_pnl(avg_entry, last_order, size, kind=position.kind),
+                    f"%.{places}f",
+                )
+                if last_order
+                else 0
+            ),
         }
 
     def close_orders(
@@ -523,27 +640,29 @@ class OrderControl:
 
     def __post_init__(self):
         if self.positions:
-            self.orders: List[Order] = [Order(**x) for x in self.order_lists]
+            initial: List[Order] = [
+                Order(positions=None, open_orders=[], **x) for x in self.order_lists
+            ]
+            self.orders: List[Order] = [
+                Order(positions=self.positions, open_orders=initial, **x)
+                for x in self.order_lists
+            ]
             self.stats: OrderStats = OrderStats(self.maker_rate, self.taker_rate)
         else:
-            self.orders:List[MarginOrder] = [MarginOrder(**x) for x in self.order_lists]
+            self.orders: List[MarginOrder] = [
+                MarginOrder(**x) for x in self.order_lists
+            ]
 
     def get_orders(self, kind: PositionKind, side: Literal["buy", "sell"]):
         def condition(u):
             if hasattr(u, "positionSide"):
                 return u.positionSide.lower() == kind
             return True
-        return [
-            x
-            for x in self.orders
-            if x.side.lower() == side and condition(x)
-        ]
+
+        return [x for x in self.orders if x.side.lower() == side and condition(x)]
 
     def get_open_orders(
-        self,
-        kind: PositionKind,
-        stats=False,
-        balance=0,
+        self, kind: PositionKind, stats=False, balance=0, append_avg=False
     ):
         side = {
             "long": "buy",
@@ -610,17 +729,56 @@ class OrderControl:
                 return self.stats.close_orders(result, position)
         return result
 
-    def get_re_entry_order(self, kind:PositionKind):
+    def get_re_entry_order(self, kind: PositionKind):
         position = getattr(self.positions, kind) if self.positions else None
         if position and position.size > 0:
+
             def condition(x):
-                if kind == 'long':
+                if kind == "long":
                     return position.entry_price <= x.entry_price
                 return position.entry_price >= x.entry_price
+
             orders = [x for x in self.get_open_orders(kind) if condition(x)]
             if orders:
                 return orders[0]
 
+    def eval_avg_entry(
+        self, kind: PositionKind, open_orders: List[MarginOrder], last_entry: float
+    ):
+        position = getattr(self.positions, kind) if self.positions else None
+
+        if last_entry is not None:
+            if kind == "long":
+                open_orders = [
+                    order for order in open_orders if order.entry_price >= last_entry
+                ]
+            else:  # short
+                open_orders = [
+                    order for order in open_orders if order.entry_price <= last_entry
+                ]
+
+        total_size = sum(order.quantity for order in open_orders)
+        total_value = sum(order.quantity * order.entry_price for order in open_orders)
+
+        if position and position.size > 0:
+            total_size += position.size
+            total_value += position.size * position.entry_price
+
+        if total_size == 0:
+            return {"price": 0, "quantity": 0}  # No orders and no position
+
+        avg_entry_price = total_value / total_size
+
+        return {
+            "price": avg_entry_price,
+            "quantity": total_size,
+        }
+
+    def avg_entry(
+        self, kind: PositionKind, last_entry: Optional[float] = None
+    ) -> tuple[float, float]:
+        open_orders = self.get_open_orders(kind)
+        return self.eval_avg_entry(kind, open_orders, last_entry)
 
 
 @dataclass

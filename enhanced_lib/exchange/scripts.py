@@ -64,3 +64,4 @@ def get_s_r(pair1,pair2):
         'high': high,
         'low': low
     }
+
