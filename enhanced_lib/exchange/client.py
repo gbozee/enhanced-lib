@@ -917,7 +917,7 @@ class TradeClient:
                     "base": params["base"],
                     "quote": params["quote"],
                 },
-                'mode': params.get('mode') or 'isolated',
+                "mode": params.get("mode") or "isolated",
                 "symbol": params["symbol"],
             },
         )
@@ -943,7 +943,7 @@ class TradeClient:
                     "margin": margin_balance,
                 },
                 "symbol": params["symbol"],
-                'mode': params.get('mode') or 'isolated'
+                "mode": params.get("mode") or "isolated",
             },
         )
         return result["data"]
@@ -964,7 +964,7 @@ class TradeClient:
                 },
                 "type": params.get("type"),
                 "symbol": params["symbol"],
-                'mode': params.get('mode') or 'isolated'
+                "mode": params.get("mode") or "isolated",
             },
         )
         return result["data"]
@@ -983,7 +983,7 @@ class TradeClient:
                     "cancel": True,
                 },
                 "symbol": params["symbol"],
-                'mode': params.get('mode') or 'isolated'
+                "mode": params.get("mode") or "isolated",
             },
         )
         return result["data"]
@@ -993,8 +993,8 @@ class TradeClient:
             f"api/{params['owner']}/margin-actions",
             "POST",
             {
-                "action": params['action'],
-                'mode': params.get('mode') or 'isolated',
+                "action": params["action"],
+                "mode": params.get("mode") or "isolated",
                 "symbol": params["symbol"],
             },
         )
@@ -1022,6 +1022,22 @@ class TradeClient:
                 "symbol": params["symbol"],
                 "name": "get_position",
                 "params": {"args": [], "kwargs": {"skip": True}},
+            },
+        )
+        return result["data"]
+
+    def place_raw_orders(self, params):
+        result = self.api_call(
+            f'api/{params["owner"]}/remote-actions',
+            "POST",
+            {
+                "action": "create_limit_purchase_orders",
+                "symbol": params["symbol"],
+                "name": "create_limit_purchase_orders",
+                "params": {
+                    "args": [params["orders"]],
+                    "kwargs": {"_working_type": "contract"},
+                },
             },
         )
         return result["data"]
@@ -1073,7 +1089,7 @@ class TradeClient:
             {
                 "owner": params["owner"],
                 "parent": params["parent"],
-                "symbol": params["symbol"]
-            }
+                "symbol": params["symbol"],
+            },
         )
         return result
