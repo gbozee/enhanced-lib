@@ -153,12 +153,14 @@ def find_index_by_condition(
     for index, item in enumerate(new_lst):
         if item["net_diff"] > 0:
             found.append(index)
+    # breakpoint()
     if not found:
-        min_diff = min([x["net_diff"] for x in new_lst])
+        min_diff = max([x["net_diff"] for x in new_lst])
         for index, item in enumerate(new_lst):
             if item["net_diff"] >= min_diff:
                 found.append(index)
 
+    
     transformed_found = [{**new_lst[i], "index": i} for i in found]
 
     def condition(x):
@@ -167,9 +169,9 @@ def find_index_by_condition(
         return x["net_diff"] >= min_diff
 
     def key_lambda(x):
-        if min_diff == 0:
             return (-x["total"], -x["net_diff"])
-        return (-x["net_diff"],)
+        # if min_diff == 0:
+        # return (-x["net_diff"],)
 
     sorted_found = sorted(
         (i for i in transformed_found if condition(i)),
@@ -228,7 +230,7 @@ def determine_optimum_reward(
         if found_index == 0:
             return True
         return found_index > -1
-
+    
     func = [eval_func(x, app_config, increase=increase) for x in risk_rewards]
     highest = 0
     new_func = []
@@ -243,6 +245,7 @@ def determine_optimum_reward(
                 else:
                     highest = min(highest, j["entry"]) if highest > 0 else j["entry"]
     old_func = [x for x in func]
+    # breakpoint()
     func = new_func
     key = "max" if criterion == "quantity" else "entry"
     index = find_index_by_condition(
