@@ -469,7 +469,9 @@ def get_risk_reward(client: ExchangeCache, payload, kind, strategy="entry", loss
     config.strategy = strategy
     app_config = config.app_config
     app_config.raw = True
-    result = determine_optimum_reward(app_config, loss=loss)
+    result = determine_optimum_reward(
+        app_config, loss=loss, increase=config.increase_position
+    )
     return result.get("value"), result.get("result"), result.get("size")
 
 

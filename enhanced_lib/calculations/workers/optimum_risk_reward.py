@@ -185,7 +185,13 @@ def find_index_by_condition(
 
 
 def determine_optimum_reward(
-    app_config: AppConfig, no_of_cpu=4, gap=1, option="default", ignore=False, loss=None
+    app_config: AppConfig,
+    no_of_cpu=4,
+    gap=1,
+    option="default",
+    ignore=False,
+    loss=None,
+    increase=None,
 ):
     criterion = app_config.strategy or "quantity"
     risk_rewards = [x for x in range(30, 199, gap)]
@@ -206,7 +212,7 @@ def determine_optimum_reward(
             return True
         return found_index > -1
 
-    func = [eval_func(x, app_config) for x in risk_rewards]
+    func = [eval_func(x, app_config, increase=increase) for x in risk_rewards]
     highest = 0
     new_func = []
     for j in func:
