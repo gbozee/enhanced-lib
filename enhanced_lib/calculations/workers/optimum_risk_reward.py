@@ -15,7 +15,7 @@ class EvalFuncType(typing.TypedDict):
     max_index: int
 
 
-def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
+def eval_func(y: int, config: AppConfig, increase=None) -> typing.List[EvalFuncType]:
     profit = config.take_profit
     if not profit:
         profit = (
@@ -33,13 +33,16 @@ def eval_func(y: int, config: AppConfig) -> typing.List[EvalFuncType]:
         if config.kind == "long"
         else max(config.entry, config.stop)
     )
+    increase_value = increase
+    if increase_value is None:
+        increase_value = True
     params = {
         "take_profit": profit,
         "entry": entry,
         "stop": stop,
         "no_of_trades": y,
         "risk_reward": y,
-        "increase": True,
+        "increase": increase_value,
         "kind": config.kind,
         "decimal_places": config.decimal_places,
     }
