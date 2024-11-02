@@ -79,6 +79,8 @@ class ExchangeCache:
             value["min_size"] = payload.get("min_size")
         if payload.get("minimum_size"):
             value["minimum_size"] = payload.get("minimum_size")
+        if payload.get("increase_position") is not None:
+            value["increase_position"] = payload["increase_position"]
         instance = Config(**value)
 
         return instance
