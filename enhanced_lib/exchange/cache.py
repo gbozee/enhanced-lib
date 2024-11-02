@@ -81,6 +81,8 @@ class ExchangeCache:
             value["minimum_size"] = payload.get("minimum_size")
         if payload.get("increase_position") is not None:
             value["increase_position"] = payload["increase_position"]
+        if payload.get("gap"):
+            value["gap"] = payload["gap"]
         instance = Config(**value)
 
         return instance
@@ -466,6 +468,7 @@ def build_trades(
 
 def get_risk_reward(client: ExchangeCache, payload, kind, strategy="entry", loss=None):
     config = client.build_custom_config(payload, kind)
+    
     config.strategy = strategy
     app_config = config.app_config
     app_config.raw = True

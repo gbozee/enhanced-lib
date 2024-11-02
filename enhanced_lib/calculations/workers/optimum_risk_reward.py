@@ -45,6 +45,7 @@ def eval_func(y: int, config: AppConfig, increase=None) -> typing.List[EvalFuncT
         "increase": increase_value,
         "kind": config.kind,
         "decimal_places": config.decimal_places,
+        "gap": config.gap,
     }
     # print("params", params)
     trades = build_config(
@@ -165,9 +166,14 @@ def find_index_by_condition(
             return x["net_diff"] > 0
         return x["net_diff"] >= min_diff
 
+    def key_lambda(x):
+        if min_diff == 0:
+            return (-x["total"], -x["net_diff"])
+        return (-x["net_diff"],)
+
     sorted_found = sorted(
         (i for i in transformed_found if condition(i)),
-        key=lambda x: (-x["total"], -x["net_diff"]),
+        key=key_lambda,
     )
     if default_key == "quantity":
         if loss:

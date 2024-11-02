@@ -48,6 +48,7 @@ class AppConfig:
     strategy: Literal["quantity", "entry"]
     as_array: Optional[bool] = False
     raw: Optional[bool] = False
+    gap: Optional[int] = 1
 
     @property
     def currentEntry(self):
@@ -89,6 +90,7 @@ class AppConfig:
                 "stop": params["stop"] or _stop,
                 "kind": params["trend"],
                 "no_of_trades": params["no_of_trades"],
+                "gap": params.get("gap") or self.gap,
             },
         )
         return [
@@ -115,6 +117,7 @@ class ParamType(TypedDict):
     kind: Optional[Literal["long", "short"]]
     support: Optional[float]
     resistance: Optional[float]
+    gap: Optional[int]
 
 
 def build_config(app_config: AppConfig, params: ParamType):
@@ -135,6 +138,7 @@ def build_config(app_config: AppConfig, params: ParamType):
         risk_per_trade=working_risk,
         increase_position=params["increase"],
         minimum_size=minimum_size,
+        gap=params.get("gap") or app_config.gap,
         # first_order_size=app_config.first_order_size
     )
     if params.get("raw_instance"):
@@ -183,7 +187,10 @@ def build_avg(
 
 
 def compute_total_average_for_each_trade(
-    app_config: AppConfig, trades: List[TradeInstanceType], current_qty=0,_current_entry=0
+    app_config: AppConfig,
+    trades: List[TradeInstanceType],
+    current_qty=0,
+    _current_entry=0,
 ):
     take_profit = (
         max(app_config.entry, app_config.stop)
@@ -246,13 +253,15 @@ def compute_total_average_for_each_trade(
                 kind=kind,
             )
             sell_price = take_profit
-            loss = determine_pnl(avg_entry['price'],x.get('stop'),avg_entry['quantity'],kind=kind)
+            loss = determine_pnl(
+                avg_entry["price"], x.get("stop"), avg_entry["quantity"], kind=kind
+            )
         return {
             **x,
             "avg_entry": avg_entry["price"],
             "avg_size": avg_entry["quantity"],
             "pnl": to_f(_pnl, app_config.decimal_places),
-            'neg.pnl': to_f(loss, app_config.decimal_places),
+            "neg.pnl": to_f(loss, app_config.decimal_places),
             "sell_price": sell_price,
             "start_entry": current_entry,
         }

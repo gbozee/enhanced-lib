@@ -1,7 +1,9 @@
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple, TypeVar
 import math
 import typing
 import datetime
+
+T = TypeVar("T")
 
 
 def get_current_time():
@@ -296,3 +298,39 @@ def determine_stop_and_tp(entry: float, size: float, pnl: float, kind="long"):
     stop = entry - (entry * (pnl / (size * entry)))
     tp = determine_close_price(entry, pnl, size, kind=kind)
     return {'stop':to_f(stop,'%.1f'),'tp':to_f(tp,'%.1f')}
+
+
+def create_gap_pairs(
+    arr: List[T], gap: int, item: Optional[T] = None
+) -> List[Tuple[T, T]]:
+    """
+    Creates pairs of elements from an array based on a specified gap.
+
+    Args:
+        arr: Input list of elements
+        gap: The gap between elements to create pairs
+        item: Optional item to filter pairs by
+
+    Returns:
+        List of tuples containing paired elements
+    """
+    if len(arr) == 0:
+        return []
+
+    result: List[Tuple[T, T]] = []
+    first_element = arr[0]
+
+    for i in range(len(arr) - 1, -1, -1):
+        current = arr[i]
+        gap_index = i - gap
+        paired_element = first_element if gap_index < 0 else arr[gap_index]
+
+        if current != paired_element:
+            result.append((current, paired_element))
+
+    if item is not None:
+        # Find the first pair where the first element matches the item
+        matching_pair = next((pair for pair in result if pair[0] == item), None)
+        return [matching_pair] if matching_pair else []
+
+    return result

@@ -133,6 +133,7 @@ class Signal:
     increase_position: Optional[bool] = False
     default: Optional[bool] = False
     minimum_size: Optional[float] = None
+    gap: Optional[int] = None
 
     @property
     def risk(self) -> float:
@@ -308,6 +309,8 @@ class Signal:
         take_profit=None,
         start=0,
     ):
+        if stop is None:
+            return None
         considered = [i for i, x in enumerate(arr) if i > index]
         with_quantity = [
             {"quantity": q, "entry": arr[x]}
@@ -459,9 +462,11 @@ class Signal:
                     y := self.build_trade_dict(
                         x,
                         # limit_orders[-1],
-                        self.support
-                        if increase_position
-                        else (limit_orders[-1] if i == 0 else market_orders[i - 1]),
+                        (
+                            self.support
+                            if increase_position
+                            else (limit_orders[-1] if i == 0 else market_orders[i - 1])
+                        ),
                         risk_per_trade,
                         market_orders,
                         i,
@@ -478,15 +483,29 @@ class Signal:
                 total_incurred_market_fees += market_trades[0]["incurred"]
                 total_incurred_market_fees += market_trades[0]["fee"]
             new_stop = self.support if kind == "long" else stop_loss
+            default_gap = self.gap or 1
+
+            def determine_stop(x):
+                gap_pairs = create_gap_pairs(limit_orders, default_gap, x)
+                if gap_pairs:
+                    _value = gap_pairs[0][1]
+                    return _value
+                return None
+
+            # new_pairs = [(x, determine_stop(x)) for x in limit_orders]
+
             limit_trades = [
                 y
                 for i, x in enumerate(limit_orders)
                 if (
                     y := self.build_trade_dict(
                         x,
-                        new_stop
-                        if increase_position
-                        else (stop_loss if i == 0 else limit_orders[i - 1]),
+                        (
+                            new_stop
+                            if increase_position
+                            else determine_stop(x)
+                            # else (stop_loss if i == 0 else limit_orders[i - 1])
+                        ),
                         risk_per_trade,
                         # new_tp,
                         limit_orders,
@@ -718,7 +737,7 @@ class Signal:
                 "increase_size",
                 "increase_position",
                 "minimum_size",
-                'fee'
+                "fee",
             ]
         }
         return config
@@ -983,12 +1002,15 @@ class Signal:
             # print('difference', difference,'risk_reward', self.risk_reward)
             spread = to_f(difference / self.risk_reward)
             entries = [
-                to_f(margin_range[1] - (spread * x),self.price_places)
+                to_f(margin_range[1] - (spread * x), self.price_places)
                 for x in range(int(self.risk_reward) + 1)
             ]
             if kind == "short":
                 entries = [
-                    to_f(margin_range[1] * math.pow(1 + (percent_change), x),self.price_places)
+                    to_f(
+                        margin_range[1] * math.pow(1 + (percent_change), x),
+                        self.price_places,
+                    )
                     for x in range(int(self.risk_reward) + 1)
                 ]
             # print('entries', entries)
@@ -1005,25 +1027,33 @@ class Signal:
                     new_range = self.to_f(new_range)
                     while len(entries) < int(self.risk_reward) + 1:
                         if kind == "long":
-                            value = to_f(new_range - (spread * x),self.price_places)
+                            value = to_f(new_range - (spread * x), self.price_places)
                             if value <= self.to_f(current_price):
                                 entries.append(value)
                         else:
-                            value = to_f(new_range * math.pow(1 + (percent_change), x),self.price_places)
+                            value = to_f(
+                                new_range * math.pow(1 + (percent_change), x),
+                                self.price_places,
+                            )
                             if value >= self.to_f(current_price):
                                 entries.append(value)
                         x += 1
-            if len(remaining_zones) == 0 and to_f(current_price,self.price_places) <= min(entries):
+            if len(remaining_zones) == 0 and to_f(
+                current_price, self.price_places
+            ) <= min(entries):
                 next_focus = margin_range[0] * math.pow(1 + self.percent_change, -1)
                 entries = []
                 x = 0
                 while len(entries) < int(self.risk_reward) + 1:
                     if kind == "long":
-                        value = to_f(next_focus - (spread * x),self.price_places)
+                        value = to_f(next_focus - (spread * x), self.price_places)
                         if value <= self.to_f(current_price):
                             entries.append(value)
                     else:
-                        value = to_f(next_focus * math.pow(1 + (percent_change), x),self.price_places)
+                        value = to_f(
+                            next_focus * math.pow(1 + (percent_change), x),
+                            self.price_places,
+                        )
                         if value >= self.to_f(current_price):
                             entries.append(value)
                     x += 1
@@ -1080,12 +1110,15 @@ class Signal:
             "minimum_pnl": pnl,
             "take_profit": take_profit or self.take_profit,
             "support": _stop_loss if kind == "long" else (support or self.support),
+            "gap": self.gap,
+            "increase_position": self.increase_position,
         }
         # print('derived_config', derived_config)
         instance = Signal(**derived_config)
         # if optimum:
         #     breakpoint()
         result = instance.get_bulk_trade_zones(_entry_price, kind=kind) or []
+
         def best_transform(x):
             if kind == "long":
                 return x["entry"] > x["stop"] + 0.5
