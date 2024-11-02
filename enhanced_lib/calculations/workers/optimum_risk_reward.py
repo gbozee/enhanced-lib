@@ -148,14 +148,25 @@ def find_index_by_condition(
 ) -> int:
     found = []
     new_lst = [{**i, "net_diff": i["neg.pnl"] + i["risk_per_trade"]} for i in lst]
-
+    min_diff = 0
     for index, item in enumerate(new_lst):
         if item["net_diff"] > 0:
             found.append(index)
+    if not found:
+        min_diff = min([x["net_diff"] for x in new_lst])
+        for index, item in enumerate(new_lst):
+            if item["net_diff"] >= min_diff:
+                found.append(index)
 
     transformed_found = [{**new_lst[i], "index": i} for i in found]
+
+    def condition(x):
+        if min_diff == 0:
+            return x["net_diff"] > 0
+        return x["net_diff"] >= min_diff
+
     sorted_found = sorted(
-        (i for i in transformed_found if i["net_diff"] > 0),
+        (i for i in transformed_found if condition(i)),
         key=lambda x: (-x["total"], -x["net_diff"]),
     )
     if default_key == "quantity":
@@ -239,10 +250,10 @@ def determine_optimum_reward(
         if app_config.raw:
             return func[index]
         return func[index].get("value")
-    print("func", func)
-    print("old_func", old_func)
-    print("highest", highest)
-    print("index", index)
+    # print("func", func)
+    # print("old_func", old_func)
+    # print("highest", highest)
+    # print("index", index)
     raise Exception("No optimum reward found for ", app_config.risk_per_trade)
 
 
