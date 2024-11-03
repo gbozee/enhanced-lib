@@ -1120,6 +1120,10 @@ class Signal:
         result = instance.get_bulk_trade_zones(_entry_price, kind=kind) or []
 
         def best_transform(x):
+            decimal_power= self.decimal_places.replace('%.','').replace('f','')
+            decimal_power = int(decimal_power)
+            if decimal_power < 3:
+                return True
             if kind == "long":
                 return x["entry"] > x["stop"] + 0.5
             return x["entry"] + 0.5 < x["stop"]
