@@ -356,6 +356,7 @@ class Signal:
             entry,
             stop,
             risk,
+            min_size=self.minimum_size,
             places=self.decimal_places,
         )
         # print({"entry": entry, "stop": stop, "risk": risk, "quantity": quantity})
