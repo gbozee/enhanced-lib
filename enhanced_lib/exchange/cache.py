@@ -472,15 +472,15 @@ def get_risk_reward(client: ExchangeCache, payload, kind, strategy="entry", loss
     config.strategy = strategy
     app_config = config.app_config
     app_config.raw = True
-    result = determine_optimum_reward(app_config, loss=loss, increase=config.increase_position)
+    result = determine_optimum_reward(app_config, loss=loss, increase=True)
     rr = result.get("result")
-    # if not config.increase_position:
-    #     # breakpoint()
-    #     # always use the risk_reward from when increase is true
-    #     config.risk_reward = result.get("value")
-    #     result = config.build_trades()
-    #     if result.get("result"):
-    #         rr = result.get('risk_reward')
+    if not config.increase_position:
+        # breakpoint()
+        # always use the risk_reward from when increase is true
+        config.risk_reward = result.get("value")
+        result = config.build_trades()
+        if result.get("result"):
+            rr = result.get('risk_reward')
     return result.get("value"), rr, result.get("size")
 
 
