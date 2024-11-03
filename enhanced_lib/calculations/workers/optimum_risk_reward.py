@@ -236,6 +236,7 @@ def determine_optimum_reward(
         return found_index > -1
     
     func = [eval_func(x, app_config, increase=increase) for x in risk_rewards]
+    func = [x for x in func if x.get('result')]
     highest = 0
     new_func = []
     for j in func:
