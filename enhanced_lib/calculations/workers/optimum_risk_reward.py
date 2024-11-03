@@ -62,7 +62,7 @@ def eval_func(y: int, config: AppConfig, increase=None) -> typing.List[EvalFuncT
             "entry": 0,
             "max_index": -1,
             'neg.pnl':0,
-            'risk_per_trade':config.risk_per_trade
+            'risk_per_trade':0
         }
     # print("trades", trades)
     _max = max([x["entry"] for x in trades]) if trades else 0
@@ -82,11 +82,13 @@ def eval_func(y: int, config: AppConfig, increase=None) -> typing.List[EvalFuncT
     avg_size = 0
     _pnl = 0
     neg_pnl = 0
+    risk_per_trade=0
     if trades:
         _min_quantity = trades[0]["quantity"]
         avg_size = trades[0]["avg_size"]
         _pnl = trades[0]["pnl"]
         neg_pnl = trades[0]["neg.pnl"]
+        risk_per_trade =trades[0]['risk']
     total = 0
     max_index = -1
     total = sum([x["quantity"] for x in trades])
@@ -116,7 +118,7 @@ def eval_func(y: int, config: AppConfig, increase=None) -> typing.List[EvalFuncT
         "pnl": _pnl,
         "neg.pnl": neg_pnl,
         "max_index": max_index,
-        "risk_per_trade": config.risk_per_trade,
+        "risk_per_trade": risk_per_trade,
     }
     found_trades = max_index > -1
 
