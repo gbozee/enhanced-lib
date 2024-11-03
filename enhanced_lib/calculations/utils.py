@@ -89,6 +89,51 @@ def determine_close_price(
     return 0
 
 
+def determine_quantity(
+    entry,
+    pnl,
+    close_price,
+    leverage=1,
+    kind="long",
+):
+    """
+    Calculate the quantity of a position given the entry price, PnL, and close price.
+
+    Args:
+        entry (float): Entry price of the position
+        pnl (float): Profit/Loss amount
+        close_price (float): Close/Exit price of the position
+        leverage (float): Leverage multiplier, defaults to 1
+        kind (str): Type of position - "long" or "short"
+
+    Returns:
+        float: Quantity of the position
+    """
+    if entry <= 0 or close_price <= 0:
+        return 0
+
+    # Calculate price difference based on position type
+    if kind == "long":
+        price_difference = close_price - entry
+    else:
+        price_difference = entry - close_price
+
+    if price_difference == 0:
+        return 0
+
+    # Dollar value per unit
+    dollar_value = entry / leverage
+
+    # Derive quantity from the relationship between PnL and price difference
+    # PnL = position_size * (price_difference/entry)
+    # position_size = dollar_value * quantity
+    # Therefore: PnL = (dollar_value * quantity) * (price_difference/entry)
+    # Solving for quantity:
+    quantity = (pnl * entry) / (dollar_value * price_difference)
+
+    return quantity
+
+
 def determine_position_size(
     entry: float,
     stop: Optional[float] = None,
@@ -107,7 +152,7 @@ def determine_position_size(
         if as_coin:
             size = size / entry
             if min_size and min_size == 1:
-                return to_f(math.ceil(size), places)
+                return to_f(round(size), places)
         return to_f(size, places)
 
 
@@ -297,7 +342,7 @@ def determine_fib_support(value_with_fibs: typing.List[dict], places="%.1f"):
 def determine_stop_and_tp(entry: float, size: float, pnl: float, kind="long"):
     stop = entry - (entry * (pnl / (size * entry)))
     tp = determine_close_price(entry, pnl, size, kind=kind)
-    return {'stop':to_f(stop,'%.1f'),'tp':to_f(tp,'%.1f')}
+    return {"stop": to_f(stop, "%.1f"), "tp": to_f(tp, "%.1f")}
 
 
 def create_gap_pairs(
@@ -316,7 +361,6 @@ def create_gap_pairs(
     """
     if len(arr) == 0:
         return []
-
     result: List[Tuple[T, T]] = []
     first_element = arr[0]
 
