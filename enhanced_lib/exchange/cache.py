@@ -466,20 +466,22 @@ def build_trades(
     return result["result"]
 
 
-def get_risk_reward(client: ExchangeCache, payload, kind, strategy="entry", loss=None):
+def get_risk_reward(client: ExchangeCache, payload, kind, strategy="entry", loss=None,
+                    default_increase=True):
     config = client.build_custom_config(payload, kind)
 
     config.strategy = strategy
     app_config = config.app_config
     app_config.raw = True
-    result = determine_optimum_reward(app_config, loss=loss, increase=True)
+    condition = default_increase or config.increase_position
+    result = determine_optimum_reward(app_config, loss=loss, increase=condition)
     rr = result.get("result")
     if not config.increase_position:
         # breakpoint()
         # always use the risk_reward from when increase is true
         config.risk_reward = result.get("value")
         result = config.build_trades()
-        if result.get("result"):
+        if result.get("result") and not rr:
             rr = result.get('risk_reward')
     return result.get("value"), rr, result.get("size")
 
