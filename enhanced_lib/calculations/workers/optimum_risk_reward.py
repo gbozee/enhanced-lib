@@ -61,6 +61,8 @@ def eval_func(y: int, config: AppConfig, increase=None) -> typing.List[EvalFuncT
             "min": 0,
             "entry": 0,
             "max_index": -1,
+            'neg.pnl':0,
+            'risk_per_trade':config.risk_per_trade
         }
     # print("trades", trades)
     _max = max([x["entry"] for x in trades]) if trades else 0
