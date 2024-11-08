@@ -83,6 +83,8 @@ class ExchangeCache:
             value["increase_position"] = payload["increase_position"]
         if payload.get("gap"):
             value["gap"] = payload["gap"]
+        if payload.get("rr"):
+            value["rr"] = payload["rr"]
         instance = Config(**value)
 
         return instance

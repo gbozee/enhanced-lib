@@ -308,6 +308,7 @@ class Signal:
         kind="long",
         take_profit=None,
         start=0,
+        new_stop=0,
     ):
         if stop is None:
             return None
@@ -403,6 +404,7 @@ class Signal:
                 "incurred": incurred,
                 "stop_percent": self.to_df(abs(entry - stop) / entry),
                 "rr": self.risk_reward,
+                "new_stop": new_stop,
                 # 'considered': considered,
                 # 'index': index,
             }
@@ -502,9 +504,7 @@ class Signal:
                     y := self.build_trade_dict(
                         x,
                         (
-                            new_stop
-                            if increase_position
-                            else determine_stop(x)
+                            new_stop if increase_position else determine_stop(x)
                             # else (stop_loss if i == 0 else limit_orders[i - 1])
                         ),
                         risk_per_trade,
@@ -515,6 +515,7 @@ class Signal:
                         kind=kind,
                         start=len(market_orders) + len(limit_orders),
                         take_profit=take_profit,
+                        new_stop=stop_loss if i == 0 else limit_orders[i - 1],
                     )
                 )
                 is not None
@@ -573,6 +574,15 @@ class Signal:
                         )
                     )  # noqa: F405
                     is not None
+                ]
+                less_than_min_size = [
+                    {
+                        **x,
+                        "new_stop": less_than_min_size[i - 1]["entry"]
+                        if i > 0
+                        else greater_than_min_size[-1]["new_stop"],
+                    }
+                    for i, x in enumerate(less_than_min_size)
                 ]
                 if len(greater_than_min_size) == len(total_orders):
                     return total_orders
@@ -1121,7 +1131,7 @@ class Signal:
         result = instance.get_bulk_trade_zones(_entry_price, kind=kind) or []
 
         def best_transform(x):
-            decimal_power= self.decimal_places.replace('%.','').replace('f','')
+            decimal_power = self.decimal_places.replace("%.", "").replace("f", "")
             decimal_power = int(decimal_power)
             if decimal_power < 3:
                 return True

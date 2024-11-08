@@ -106,6 +106,7 @@ class PlaceMarginType(TypedDict):
     stop: float
     cancel: bool
     owner: str
+    mode: Literal["isolated", "cross"]
 
 
 class UpdateMarginType(TypedDict):
@@ -704,7 +705,7 @@ class TradeClient:
 
     def place_margin_signal_trade(self, params: PlaceMarginType):
         result = self.api_call(
-            "/api/signals/place-margin-order",
+            "api/signals/place-margin-order",
             "POST",
             {**params, "symbol": params["symbol"].upper()},
         )

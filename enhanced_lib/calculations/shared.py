@@ -8,6 +8,7 @@ from .utils import (
     determine_pnl,
     to_f,
     fibonacci_analysis,
+    determine_close_price,
 )
 
 
@@ -49,6 +50,7 @@ class AppConfig:
     as_array: Optional[bool] = False
     raw: Optional[bool] = False
     gap: Optional[int] = 1
+    rr: Optional[float] = 1
 
     @property
     def currentEntry(self):
@@ -118,7 +120,7 @@ class ParamType(TypedDict):
     support: Optional[float]
     resistance: Optional[float]
     gap: Optional[int]
-
+    rr: Optional[float]
 
 def build_config(app_config: AppConfig, params: ParamType):
     fee = app_config.fee / 100
@@ -160,6 +162,7 @@ def build_config(app_config: AppConfig, params: ParamType):
         kind=params["kind"] or app_config.kind,
         no_of_trades=trade_no,
     )
+    app_config.rr = params.get("rr") or app_config.rr
     return compute_total_average_for_each_trade(app_config, result, current_qty=0)
     return result
 
@@ -245,6 +248,7 @@ def compute_total_average_for_each_trade(
         _pnl = x.get("pnl")
         sell_price = x["sell_price"]
         loss = 0
+        entry_pnl = x.get("pnl")
         if take_profit:
             _pnl = determine_pnl(
                 avg_entry["price"],
@@ -252,10 +256,35 @@ def compute_total_average_for_each_trade(
                 avg_entry["quantity"],
                 kind=kind,
             )
-            sell_price = take_profit
-            loss = determine_pnl(
-                avg_entry["price"], x.get("stop"), avg_entry["quantity"], kind=kind
+            entry_pnl = determine_pnl(
+                x.get("entry"),
+                take_profit,
+                avg_entry["quantity"],
+                kind=kind,
             )
+            sell_price = take_profit
+        loss = determine_pnl(
+            avg_entry["price"], x.get("stop"), avg_entry["quantity"], kind=kind
+        )
+        entry_loss = determine_pnl(
+            x.get("entry"),
+            x.get("new_stop") or x.get("stop"),
+            avg_entry["quantity"],
+            kind=kind,
+        )
+        x_fee = x.get("fee")
+        if app_config.fee:
+            x_fee = (
+                (app_config.fee/100)
+                * (x.get("new_stop") or x.get("stop"))
+                * avg_entry["quantity"]
+            )
+        tp_close = determine_close_price(
+            x.get("entry"),
+            (abs(entry_loss) * (app_config.rr or 1)) + x_fee,
+            avg_entry["quantity"],
+            kind=kind,
+        )
         return {
             **x,
             "avg_entry": avg_entry["price"],
@@ -264,6 +293,11 @@ def compute_total_average_for_each_trade(
             "neg.pnl": to_f(loss, app_config.decimal_places),
             "sell_price": sell_price,
             "start_entry": current_entry,
+            "close_p": to_f(tp_close, "%.2f"),
+            "x_fee": to_f(x_fee, "%.2f"),
+            "entry_pnl": to_f(entry_pnl, "%.2f"),
+            "entry_loss": to_f(entry_loss, "%.2f"),
+            "e_pnl": to_f(abs(entry_loss) * (app_config.rr or 1), "%.2f"),
         }
 
     return [avgCondition(x) for x in trades]
