@@ -580,7 +580,7 @@ class Signal:
                         **x,
                         "new_stop": less_than_min_size[i - 1]["entry"]
                         if i > 0
-                        else greater_than_min_size[-1]["new_stop"],
+                        else greater_than_min_size[-1]["entry"],
                     }
                     for i, x in enumerate(less_than_min_size)
                 ]
