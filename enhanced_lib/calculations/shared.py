@@ -147,12 +147,13 @@ def build_config(app_config: AppConfig, params: ParamType):
         return instance
     if not params.get("stop"):
         return []
-
+    # stop_condition = 
     condition = (
         (params["entry"] > app_config.support)
         if params["kind"] == "long"
         else params["entry"] >= app_config.support
-    ) and params["stop"] >= 0.999
+    )
+    # ) and params["stop"] >= 0.999
     if (params["entry"] == params["stop"]) or not condition:
         return []
     result = instance.default_build_entry(

@@ -89,6 +89,19 @@ def determine_close_price(
     return 0
 
 
+def determine_amount_to_buy(
+    ideal_entry: float,
+    ideal_quantity: float,
+    current_price: float,
+    current_quantity: float,
+    places="%.1f",
+):
+    evaluation = ideal_entry * ideal_quantity
+    remaining_quantity = abs(ideal_quantity - current_quantity)
+    left_side = evaluation - (current_price * current_quantity)
+    return to_f(left_side / remaining_quantity, places)
+
+
 def determine_quantity(
     entry,
     pnl,
