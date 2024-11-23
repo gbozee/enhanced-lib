@@ -30,7 +30,7 @@ def _get_zone_nogen(
     focus_low = last * (1 + percent_change) ** -1
     if focus_high > current_price:
         while focus_high > current_price:
-            if last < 1:  # to resolve for tother symbols
+            if last < 0.00001:  # to resolve for tother symbols
                 break
             if focus_high == last:
                 break
@@ -504,7 +504,9 @@ class Signal:
                     y := self.build_trade_dict(
                         x,
                         (
-                            new_stop if increase_position else determine_stop(x)
+                            new_stop
+                            if increase_position
+                            else determine_stop(x)
                             # else (stop_loss if i == 0 else limit_orders[i - 1])
                         ),
                         risk_per_trade,
@@ -580,7 +582,9 @@ class Signal:
                         **x,
                         "new_stop": less_than_min_size[i - 1]["entry"]
                         if i > 0
-                        else greater_than_min_size[-1]["entry"],
+                        else greater_than_min_size[-1]["entry"]
+                        if greater_than_min_size
+                        else less_than_min_size[0]["entry"],
                     }
                     for i, x in enumerate(less_than_min_size)
                 ]
@@ -1011,7 +1015,7 @@ class Signal:
             percent_change = self.percent_change / self.risk_reward
             difference = abs(margin_range[0] - margin_range[1])
             # print('difference', difference,'risk_reward', self.risk_reward)
-            spread = to_f(difference / self.risk_reward)
+            spread = to_f(difference / self.risk_reward,self.price_places)
             entries = [
                 to_f(margin_range[1] - (spread * x), self.price_places)
                 for x in range(int(self.risk_reward) + 1)
