@@ -1043,6 +1043,26 @@ class TradeClient:
         )
         return result["data"]
 
+    def get_symbols_for_the_day(self, params):
+        result = self.api_call(
+            f"api/{params['owner']}/remote-actions",
+            "POST",
+            {
+                "action": "client_call",
+                "symbol": params["symbol"],
+                "name": "client_call",
+                "params": {"args": ["futures_ticker"], "kwargs": {}},
+            },
+        )
+        symbols = [
+            {**x, "percent_change": float(x["priceChangePercent"])}
+            for x in result["data"]
+        ]
+        symbols = sorted(symbols, key=lambda x: x["percent_change"], reverse=True)
+        return [x for x in symbols if x["percent_change"] > 20]
+        print("result", result)
+        return result["data"]
+
     def last_closed_order(self, params: OpenOrderType):
         result = self.api_call(
             f"api/{params['owner']}/remote-actions",
