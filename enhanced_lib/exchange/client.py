@@ -153,11 +153,19 @@ class SpotProfileType(TypedDict):
     owner: str
 
 
+class ProfileConfig(TypedDict):
+    price_places: str
+    support: float
+    resistance: float
+    decimal_places: str
+    min_size: float
+    risk_per_trade: float
+    
+
 class CreateSpotProfileType(TypedDict):
-    symbol: str
-    spot_symbol: str
     owner: str
-    profile: str
+    symbol: str
+    profile: ProfileConfig
 
 
 class SpotSymbolType(TypedDict):
@@ -601,7 +609,47 @@ class TradeClient:
         return result.data
 
     def create_spot_profile(self, params: CreateSpotProfileType):
-        result = self.api_call("api/spot/create-profile", "POST", params)
+        profile = params['profile']
+        payload = {
+            "symbol": 'BTCUSDT',
+            "spot_symbol": params['symbol'],
+            "owner": params['owner'],
+            'profile': {
+                'symbol': params['symbol'],
+                "focus":profile['support'],
+                "zone_risk":0,
+                "gap":1,
+                "zone_split":4,
+                "price_places":profile['price_places'],
+                "buy_more":False,
+                "is_margin":False,
+                "budget":100,
+                "expected_loss":10,
+                "risk_reward":1,
+                "spread":0,
+                "follow_profit":False,
+                "follow_stop":False,
+                "entry_price":0,
+                "dollar_price":0,
+                "max_size":0.001,
+                "bull_factor":3,
+                "bear_factor":1,
+                "loss_factor":3,
+                "support":profile['support'],
+                "resistance":profile['resistance'],
+                "tradeSplit":5,
+                "futureBudget":5,
+                "decimal_places":profile['decimal_places'],
+                "min_size":profile['min_size'],
+                "transfer_funds":True,
+                "sub_accounts":[],
+                "margin_sub_account":"",
+                "risk_per_trade":30,"profit_quote_price":10000,
+                "profit_base_price":100000,
+                "fee_percent":0.0005
+            }
+        }
+        result = self.api_call("api/spot/create-profile", "POST", payload)
         return result["data"]
 
     def updateTPSL(self, params: SpotProfileType):
