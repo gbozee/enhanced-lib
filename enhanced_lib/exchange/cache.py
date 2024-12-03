@@ -56,6 +56,8 @@ class ExchangeCache:
         value = config[self.symbol.upper()]
         if additional:
             value.update(additional)
+        if value is None:
+            value = {}
         instance = Config(**value)
         if value.get("min_size"):
             instance.minimum_size = value.get("min_size")

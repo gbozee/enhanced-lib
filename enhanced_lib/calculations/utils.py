@@ -95,11 +95,18 @@ def determine_amount_to_buy(
     current_price: float,
     current_quantity: float,
     places="%.1f",
+    with_quantity=None,
 ):
     evaluation = ideal_entry * ideal_quantity
     remaining_quantity = abs(ideal_quantity - current_quantity)
     left_side = evaluation - (current_price * current_quantity)
-    return to_f(left_side / remaining_quantity, places)
+    price_to_buy = to_f(left_side / remaining_quantity, places)
+    if with_quantity:
+        return {
+            "price": price_to_buy,
+            "quantity": remaining_quantity,
+        }
+    return price_to_buy
 
 
 def determine_quantity(
@@ -391,3 +398,43 @@ def create_gap_pairs(
         return [matching_pair] if matching_pair else []
 
     return result
+
+
+def determine_percent_change(
+    low: float, high: float, iterations: int = 20, places="%.3f"
+):
+    """
+    Calculate the percent change factor (x) for a given low, high, and number of iterations.
+
+    Args:
+        low (float): The lowest value.
+        high (float): The highest value.
+        iterations (int): The number of iterations.
+
+    Returns:
+        float: The percent change factor (x).
+    """
+    # Compute the percent change factor
+    x = (high / low) ** (1 / iterations) - 1
+    return to_f(x, places)
+
+
+def get_lowest_and_highest(candlestick_list: list):
+    """
+    Determine the lowest and highest values from candlestick candlestick_list.
+
+    Args:
+        candlestick_list (list of lists): The candlestick candlestick_list where each sublist represents a candlestick.
+
+    Returns:
+        tuple: (lowest_value, highest_value)
+    """
+    # Extract the low prices (index 3) and high prices (index 2) from the candlestick_list
+    lows = [float(candle[3]) for candle in candlestick_list]  # Low prices
+    highs = [float(candle[2]) for candle in candlestick_list]  # High prices
+
+    # Find the minimum of the lows and maximum of the highs
+    lowest_value = min(lows)
+    highest_value = max(highs)
+
+    return {"low": lowest_value, "high": highest_value}
