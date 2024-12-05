@@ -92,13 +92,14 @@ class ExchangeCache:
         return instance
 
     def compute_best_entries(
-        self, payload, focus_index, kind, no_of_trades=10, percent_change=0.04
+        self, payload, focus_index, kind, no_of_trades=10, 
     ):
         config = self.build_custom_config(payload, kind)
         config.strategy = "quantity"
         initial_results = config.build_trades()["result"]
         result = []
         new_payload = {**payload}
+        percent_change = (max(payload['entry'], payload['stop'])/min(payload['entry'], payload['stop'])) - 1
         while len(result) < no_of_trades:
             new_index = len(initial_results) - focus_index
             if new_index < 0:
