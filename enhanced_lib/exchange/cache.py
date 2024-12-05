@@ -91,6 +91,50 @@ class ExchangeCache:
 
         return instance
 
+    def compute_best_entries(
+        self, payload, focus_index, kind, no_of_trades=10, percent_change=0.04
+    ):
+        config = self.build_custom_config(payload, kind)
+        config.strategy = "quantity"
+        initial_results = config.build_trades()["result"]
+        result = []
+        new_payload = {**payload}
+        while len(result) < no_of_trades:
+            new_index = len(initial_results) - focus_index
+            if new_index < 0:
+                break
+            new_focus = initial_results[new_index]["entry"]
+            result.append(
+                {
+                    **new_payload,
+                    "size": initial_results[0]["avg_size"],
+                    "focus": new_focus,
+                    "loss": initial_results[0]["neg.pnl"],
+                    "fee": initial_results[0]["x_fee"],
+                    "zone": [
+                        min(initial_results[-1]["entry"], initial_results[0]["entry"]),
+                        max(initial_results[-1]["entry"], initial_results[0]["entry"]),
+                    ],
+                }
+            )
+            factor = 1 + percent_change
+            new_stop = (
+                (new_focus * factor) if kind == "long" else (new_focus * factor**-1)
+            )
+            entry = (
+                max(new_stop, new_focus) if kind == "long" else min(new_focus, new_stop)
+            )
+            stop = (
+                min(new_stop, new_focus) if kind == "long" else max(new_stop, new_focus)
+            )
+            print("new_stop", stop, "new_entry", entry)
+            new_payload["entry"] = to_f(entry, config.price_places)
+            new_payload["stop"] = to_f(stop, config.decimal_places)
+            config = self.build_custom_config(new_payload, kind)
+            config.strategy = "quantity"
+            initial_results = config.build_trades()["result"]
+        return result
+
     def get_exchange_information(self):
         result = self.account.general_config.get("position_information") or {}
         if not result:
@@ -470,8 +514,14 @@ def build_trades(
     return result["result"]
 
 
-def get_risk_reward(client: ExchangeCache, payload, kind, strategy="entry", loss=None,
-                    default_increase=True):
+def get_risk_reward(
+    client: ExchangeCache,
+    payload,
+    kind,
+    strategy="entry",
+    loss=None,
+    default_increase=True,
+):
     config = client.build_custom_config(payload, kind)
 
     config.strategy = strategy
@@ -486,7 +536,7 @@ def get_risk_reward(client: ExchangeCache, payload, kind, strategy="entry", loss
         config.risk_reward = result.get("value")
         result = config.build_trades()
         if result.get("result") and not rr:
-            rr = result.get('risk_reward')
+            rr = result.get("risk_reward")
     return result.get("value"), rr, result.get("size")
 
 

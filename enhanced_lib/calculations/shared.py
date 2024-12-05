@@ -219,6 +219,7 @@ def compute_total_average_for_each_trade(
     def avgCondition(x):
         considered = []
         if kind == "long":
+            # considered = [y for y in trades if y["entry"] > 0]
             considered = [y for y in trades if y["entry"] > current_entry]
         else:
             considered = [y for y in trades if y["entry"] < current_entry]
@@ -230,15 +231,14 @@ def compute_total_average_for_each_trade(
                 v, x["entry"], operand=operator.ge, operand_reverse=operator.le
             )
         ]
-        if not remaining:
-            return {**x, "pnl": x_pnl}
-        start = (
-            max([x["entry"] for x in remaining])
-            if kind == "long"
-            else min([x["entry"] for x in remaining])
-        )
-        considered = [{**x, "entry": start} for x in considered]
-        considered += remaining
+        if remaining:
+            start = (
+                max([x["entry"] for x in remaining])
+                if kind == "long"
+                else min([x["entry"] for x in remaining])
+            )
+            considered = [{**x, "entry": start} for x in considered]
+            considered += remaining
         avg_entry = build_avg(
             [{"price": x["entry"], "quantity": x["quantity"]} for x in considered]
             + [{"price": current_entry, "quantity": current_qty}],

@@ -438,3 +438,43 @@ def get_lowest_and_highest(candlestick_list: list):
     highest_value = max(highs)
 
     return {"low": lowest_value, "high": highest_value}
+
+
+def determine_trade_zone_split(
+    entry: float,
+    stop: float,
+    quantity: float,
+    existing_quantity=0,
+    kind="long",
+    places="%.3f",
+    price_places="%.8f",
+    split=4,
+):
+    _entry = max(entry, stop) if kind == "long" else min(entry, stop)
+    _stop = min(entry, stop) if kind == "long" else max(entry, stop)
+    amount_to_buy = determine_amount_to_buy(
+        _stop,
+        quantity,
+        _entry,
+        existing_quantity,
+        with_quantity=True,
+        places=price_places,
+    )
+    target_price = amount_to_buy["price"]
+    target_quantity = amount_to_buy["quantity"]
+    print("amount_to_buy", amount_to_buy)
+    # if target_price > stop:
+    #     return []
+    new_stop = target_price
+    percent_change = determine_percent_change(target_price, stop, iterations=split)
+    values = [target_price * (1 + percent_change) ** (x - 1) for x in range(split + 1)]
+    maximum = sum([x for x in range(1, split + 1)])
+    values_with_quantities = [
+        {
+            "price": x,
+            "quantity": to_f(target_quantity * ((split - i) / maximum), places=places),
+        }
+        for i, x in enumerate(values)
+    ]
+    # breakpoint()
+    return [x for x in values_with_quantities if x["quantity"]]
