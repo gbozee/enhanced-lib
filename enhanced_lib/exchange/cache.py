@@ -92,10 +92,10 @@ class ExchangeCache:
         return instance
 
     def compute_best_entries(
-        self, payload, focus_index, kind, no_of_trades=10, 
+        self, payload, focus_index, kind, no_of_trades=10, strategy='quantity'
     ):
         config = self.build_custom_config(payload, kind)
-        config.strategy = "quantity"
+        config.strategy = strategy
         initial_results = config.build_trades()["result"]
         result = []
         new_payload = {**payload}
@@ -133,7 +133,7 @@ class ExchangeCache:
             new_payload["entry"] = to_f(entry, config.price_places)
             new_payload["stop"] = to_f(stop, config.decimal_places)
             config = self.build_custom_config(new_payload, kind)
-            config.strategy = "quantity"
+            config.strategy = strategy
             initial_results = config.build_trades()["result"]
         return result
 
