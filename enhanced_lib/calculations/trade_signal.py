@@ -1113,12 +1113,14 @@ class Signal:
         # print('original_risk_per_trade', self.risk_per_trade)
         risk_per_trade = risk / self.risk_reward
         # risk_per_trade = risk / _no_of_trades
-
+        new_resistance = (entry_price * pow(1 + percent_change, 5))
+        if percent_change > .2:
+            new_resistance = entry_price * pow(1 + percent_change,1)
         derived_config = {
             **self.config_as_dict,
             "percent_change": percent_change,
             "focus": _entry_price,
-            "resistance": (entry_price * pow(1 + percent_change, 5)),
+            "resistance": new_resistance,
             # "risk_per_trade": risk / self.risk_reward,
             "risk_per_trade": risk_per_trade,
             "risk_reward": _no_of_trades,

@@ -109,6 +109,7 @@ class ExchangeCache:
                 {
                     **new_payload,
                     "size": initial_results[0]["avg_size"],
+                    'avg_entry': initial_results[0]['avg_entry'],
                     "focus": new_focus,
                     "loss": initial_results[0]["neg.pnl"],
                     "fee": initial_results[0]["x_fee"],
