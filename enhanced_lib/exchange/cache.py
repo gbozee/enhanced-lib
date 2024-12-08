@@ -12,6 +12,7 @@ from ..calculations.future_config import (
 )
 from .account import Account, AccountKeys
 from .types import ExchangeInfo, OrderControl, Position, PositionKlass, PositionKind
+from ..calculations.utils import determine_position_size
 
 
 @dataclass
@@ -92,27 +93,56 @@ class ExchangeCache:
         return instance
 
     def compute_best_entries(
-        self, payload, focus_index, kind, no_of_trades=10, strategy='quantity'
+        self, payload, focus_index, kind, no_of_trades=10, strategy="quantity"
     ):
         config = self.build_custom_config(payload, kind)
         config.strategy = strategy
         initial_results = config.build_trades()["result"]
         result = []
         new_payload = {**payload}
-        percent_change = (max(payload['entry'], payload['stop'])/min(payload['entry'], payload['stop'])) - 1
+        percent_change = (
+            max(payload["entry"], payload["stop"])
+            / min(payload["entry"], payload["stop"])
+        ) - 1
+        support = min(payload["entry"], payload["stop"])
+        resistance = max(payload["entry"], payload["stop"])
         while len(result) < no_of_trades:
             new_index = len(initial_results) - focus_index
             if new_index < 0:
                 break
             new_focus = initial_results[new_index]["entry"]
+            margin_entry = initial_results[-1]['entry']
+            margin_kind = "long" if kind == "short" else "short"
+            margin_stop = support if margin_kind == "long" else resistance
+            margin_size = determine_position_size(
+                margin_entry, margin_stop, payload["risk_per_trade"]
+            )
+            margin_tp = initial_results[0]["stop"]
+            margin_pnl = determine_pnl(
+                margin_entry, margin_tp, margin_size, kind=margin_kind
+            )
+            if (margin_pnl / 2) > abs(initial_results[0]["neg.pnl"]):
+                margin_size = margin_size / 2
+                margin_pnl = determine_pnl(
+                    margin_entry, margin_tp, margin_size, kind=margin_kind
+                )
+
             result.append(
                 {
                     **new_payload,
                     "size": initial_results[0]["avg_size"],
-                    'avg_entry': initial_results[0]['avg_entry'],
+                    "avg_entry": initial_results[0]["avg_entry"],
                     "focus": new_focus,
                     "loss": initial_results[0]["neg.pnl"],
                     "fee": initial_results[0]["x_fee"],
+                    "margin": {
+                        "entry": margin_entry,
+                        "size": margin_size,
+                        "pnl": to_f(margin_pnl, "%.2f"),
+                        "stop": margin_stop,
+                        'kind': margin_kind,
+                        'tp': margin_tp,
+                    },
                     "zone": [
                         min(initial_results[-1]["entry"], initial_results[0]["entry"]),
                         max(initial_results[-1]["entry"], initial_results[0]["entry"]),
@@ -131,7 +161,8 @@ class ExchangeCache:
             )
             print("new_stop", stop, "new_entry", entry)
             new_payload["entry"] = to_f(entry, config.price_places)
-            new_payload["stop"] = to_f(stop, config.decimal_places)
+            new_payload["stop"] = to_f(stop, config.price_places)
+            # breakpoint()
             config = self.build_custom_config(new_payload, kind)
             config.strategy = strategy
             initial_results = config.build_trades()["result"]

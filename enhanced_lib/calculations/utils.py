@@ -478,3 +478,10 @@ def determine_trade_zone_split(
     ]
     # breakpoint()
     return [x for x in values_with_quantities if x["quantity"]]
+
+
+def get_quantity_to_sell(entry, close_price, quantity,amount, kind="long"):
+    current_pnl = determine_pnl(entry, close_price, quantity, kind=kind)
+    current_pnl = abs(current_pnl)
+    ratio = amount / current_pnl
+    return ratio * quantity
