@@ -12,7 +12,7 @@ from ..calculations.future_config import (
 )
 from .account import Account, AccountKeys
 from .types import ExchangeInfo, OrderControl, Position, PositionKlass, PositionKind
-from ..calculations.utils import determine_position_size
+from ..calculations.utils import determine_entry_and_size, determine_position_size
 
 
 @dataclass
@@ -93,7 +93,8 @@ class ExchangeCache:
         return instance
 
     def compute_best_entries(
-        self, payload, focus_index, kind, no_of_trades=10, strategy="quantity"
+        self, payload, focus_index, kind, no_of_trades=10, strategy="quantity",
+        additional_pnl=0
     ):
         config = self.build_custom_config(payload, kind)
         config.strategy = strategy
@@ -111,21 +112,31 @@ class ExchangeCache:
             if new_index < 0:
                 break
             new_focus = initial_results[new_index]["entry"]
-            margin_entry = initial_results[-1]['entry']
+            # config.strategy = "entry"
+            # new_p = {**new_payload}
+            # new_p["risk_per_trade"] = abs(initial_results[0]["neg.pnl"]) + abs(
+            #     initial_results[0]["x_fee"]
+            # )
+            # arr = config.build_trades()["result"]
+            # margin_entry = arr[-1]["avg_entry"]
+            # margin_kind = "long" if kind == "short" else "short"
+            # margin_stop = support if margin_kind == "long" else resistance
+            # margin_size = determine_position_size(
+            #     margin_entry, margin_stop, payload["risk_per_trade"]
+            # )
+            # margin_tp = arr[0]["stop"]
+            # margin_pnl = determine_pnl(
+            #     margin_entry, margin_tp, margin_size, kind=margin_kind
+            # )
+            margin_pnl = abs(initial_results[0]["neg.pnl"]) + abs(
+                initial_results[0]["x_fee"]) + additional_pnl
+            risk = payload["risk_per_trade"] 
             margin_kind = "long" if kind == "short" else "short"
             margin_stop = support if margin_kind == "long" else resistance
-            margin_size = determine_position_size(
-                margin_entry, margin_stop, payload["risk_per_trade"]
-            )
             margin_tp = initial_results[0]["stop"]
-            margin_pnl = determine_pnl(
-                margin_entry, margin_tp, margin_size, kind=margin_kind
-            )
-            if (margin_pnl / 2) > abs(initial_results[0]["neg.pnl"]):
-                margin_size = margin_size / 2
-                margin_pnl = determine_pnl(
-                    margin_entry, margin_tp, margin_size, kind=margin_kind
-                )
+            rrr = determine_entry_and_size(margin_stop, margin_tp, risk, margin_pnl)
+            margin_entry = to_f(rrr["entry"], config.price_places)
+            margin_size = to_f(rrr["size"], config.decimal_places)
 
             result.append(
                 {
@@ -140,8 +151,8 @@ class ExchangeCache:
                         "size": margin_size,
                         "pnl": to_f(margin_pnl, "%.2f"),
                         "stop": margin_stop,
-                        'kind': margin_kind,
-                        'tp': margin_tp,
+                        "kind": margin_kind,
+                        "tp": margin_tp,
                     },
                     "zone": [
                         min(initial_results[-1]["entry"], initial_results[0]["entry"]),

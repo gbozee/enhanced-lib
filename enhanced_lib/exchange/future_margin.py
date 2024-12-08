@@ -72,6 +72,8 @@ class FutureMargin:
 
     def transfer_balance(self, symbol: str, amount: float, _from: str, base_asset=None):
         asset = "USDT" if self.type == "usdt" else base_asset
+        if self.type == 'usdt':
+            asset = base_asset or 'USDT'
         result = self.make_base_call(
             symbol,
             "cross_account_transfer",

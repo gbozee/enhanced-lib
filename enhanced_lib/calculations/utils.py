@@ -480,8 +480,28 @@ def determine_trade_zone_split(
     return [x for x in values_with_quantities if x["quantity"]]
 
 
-def get_quantity_to_sell(entry, close_price, quantity,amount, kind="long"):
+def get_quantity_to_sell(entry, close_price, quantity, amount, kind="long"):
     current_pnl = determine_pnl(entry, close_price, quantity, kind=kind)
     current_pnl = abs(current_pnl)
     ratio = amount / current_pnl
     return ratio * quantity
+
+
+def determine_entry_and_size(stop, take_profit, risk, pnl):
+    from sympy import symbols, Eq, solve
+
+    # Define symbols for Entry Price and Position Size
+    entry_price = symbols("entry_price", positive=True)
+    position_size = risk / (entry_price - stop)  # Position Size Formula
+
+    # PnL Equation
+    pnl_eq = Eq(pnl, position_size * (take_profit - entry_price))
+
+    # Solve for Entry Price
+    entry_price_solution = solve(pnl_eq, entry_price)
+    calculated_entry_price = entry_price_solution[0]  # Using the positive solution
+    position_size = risk / (calculated_entry_price - stop)
+    return {
+        "entry": calculated_entry_price,
+        "size": position_size,
+    }
