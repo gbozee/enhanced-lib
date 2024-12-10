@@ -1175,16 +1175,19 @@ class TradeClient:
         return result
 
     def get_listen_key(self, params):
+        owner = params.pop("owner")
+        symbol = params.pop("symbol")
+        new = params.pop("new")
         result = self.api_call(
-            f'api/{params["owner"]}/remote-actions',
+            f"api/{owner}/remote-actions",
             "POST",
             {
                 "action": "",
-                "symbol": params["symbol"],
+                "symbol": symbol,
                 "name": "client_call",
                 "params": {
                     "args": ["get_futures_listen_key"],
-                    "kwargs": {"new": params["new"]},
+                    "kwargs": {"new": new, **params, "symbol": symbol},
                 },
             },
         )
