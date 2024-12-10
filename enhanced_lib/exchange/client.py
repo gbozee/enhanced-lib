@@ -160,7 +160,7 @@ class ProfileConfig(TypedDict):
     decimal_places: str
     min_size: float
     risk_per_trade: float
-    
+
 
 class CreateSpotProfileType(TypedDict):
     owner: str
@@ -609,45 +609,46 @@ class TradeClient:
         return result.data
 
     def create_spot_profile(self, params: CreateSpotProfileType):
-        profile = params['profile']
+        profile = params["profile"]
         payload = {
-            "symbol": 'BTCUSDT',
-            "spot_symbol": params['symbol'],
-            "owner": params['owner'],
-            'profile': {
-                'symbol': params['symbol'],
-                "focus":profile['support'],
-                "zone_risk":0,
-                "gap":1,
-                "zone_split":4,
-                "price_places":profile['price_places'],
-                "buy_more":False,
-                "is_margin":False,
-                "budget":100,
-                "expected_loss":10,
-                "risk_reward":1,
-                "spread":0,
-                "follow_profit":False,
-                "follow_stop":False,
-                "entry_price":0,
-                "dollar_price":0,
-                "max_size":0.001,
-                "bull_factor":3,
-                "bear_factor":1,
-                "loss_factor":3,
-                "support":profile['support'],
-                "resistance":profile['resistance'],
-                "tradeSplit":5,
-                "futureBudget":5,
-                "decimal_places":profile['decimal_places'],
-                "min_size":profile['min_size'],
-                "transfer_funds":True,
-                "sub_accounts":[],
-                "margin_sub_account":"",
-                "risk_per_trade":30,"profit_quote_price":10000,
-                "profit_base_price":100000,
-                "fee_percent":0.0005
-            }
+            "symbol": "BTCUSDT",
+            "spot_symbol": params["symbol"],
+            "owner": params["owner"],
+            "profile": {
+                "symbol": params["symbol"],
+                "focus": profile["support"],
+                "zone_risk": 0,
+                "gap": 1,
+                "zone_split": 4,
+                "price_places": profile["price_places"],
+                "buy_more": False,
+                "is_margin": False,
+                "budget": 100,
+                "expected_loss": 10,
+                "risk_reward": 1,
+                "spread": 0,
+                "follow_profit": False,
+                "follow_stop": False,
+                "entry_price": 0,
+                "dollar_price": 0,
+                "max_size": 0.001,
+                "bull_factor": 3,
+                "bear_factor": 1,
+                "loss_factor": 3,
+                "support": profile["support"],
+                "resistance": profile["resistance"],
+                "tradeSplit": 5,
+                "futureBudget": 5,
+                "decimal_places": profile["decimal_places"],
+                "min_size": profile["min_size"],
+                "transfer_funds": True,
+                "sub_accounts": [],
+                "margin_sub_account": "",
+                "risk_per_trade": 30,
+                "profit_quote_price": 10000,
+                "profit_base_price": 100000,
+                "fee_percent": 0.0005,
+            },
         }
         result = self.api_call("api/spot/create-profile", "POST", payload)
         return result["data"]
@@ -1162,3 +1163,29 @@ class TradeClient:
             },
         )
         return result
+
+    def get_credentials(self, params):
+        result = self.api_call(
+            f'api/websocket-exchange-account-info?access={params["access"]}',
+            "POST",
+            {
+                "owner": params["owner"],
+            },
+        )
+        return result
+
+    def get_listen_key(self, params):
+        result = self.api_call(
+            f'api/{params["owner"]}/remote-actions',
+            "POST",
+            {
+                "action": "",
+                "symbol": params["symbol"],
+                "name": "client_call",
+                "params": {
+                    "args": ["get_futures_listen_key"],
+                    "kwargs": {"new": params["new"]},
+                },
+            },
+        )
+        return result["data"]
