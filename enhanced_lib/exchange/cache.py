@@ -128,11 +128,19 @@ class ExchangeCache:
             # margin_pnl = determine_pnl(
             #     margin_entry, margin_tp, margin_size, kind=margin_kind
             # )
+            zone =  [
+                        min(initial_results[-1]["entry"], initial_results[0]["entry"]),
+                        max(initial_results[-1]["entry"], initial_results[0]["entry"]),
+                    ]
             margin_pnl = abs(initial_results[0]["neg.pnl"]) + abs(
                 initial_results[0]["x_fee"]) + additional_pnl
             risk = payload["risk_per_trade"] 
             margin_kind = "long" if kind == "short" else "short"
             margin_stop = support if margin_kind == "long" else resistance
+            if margin_kind == "long":
+                margin_stop = min(margin_stop, min(zone))
+            else:
+                margin_stop = max(margin_stop, max(zone))
             margin_tp = initial_results[0]["stop"]
             rrr = determine_entry_and_size(margin_stop, margin_tp, risk, margin_pnl)
             margin_entry = to_f(rrr["entry"], config.price_places)
@@ -154,10 +162,7 @@ class ExchangeCache:
                         "kind": margin_kind,
                         "tp": margin_tp,
                     },
-                    "zone": [
-                        min(initial_results[-1]["entry"], initial_results[0]["entry"]),
-                        max(initial_results[-1]["entry"], initial_results[0]["entry"]),
-                    ],
+                    "zone":zone,
                 }
             )
             factor = 1 + percent_change
