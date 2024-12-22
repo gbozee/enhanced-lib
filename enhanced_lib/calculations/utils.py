@@ -1,4 +1,4 @@
-from typing import Iterable, List, Optional, Tuple, TypeVar
+from typing import Iterable, List, Optional, Tuple, TypeVar, TypedDict, Literal
 import math
 import typing
 import datetime
@@ -505,3 +505,190 @@ def determine_entry_and_size(stop, take_profit, risk, pnl):
         "entry": calculated_entry_price,
         "size": position_size,
     }
+
+
+class TradePayload(TypedDict):
+    entry: float
+    kind: str
+    risk: float
+    stop_percent: float
+    fee_percent: float
+    sentiment: str
+
+
+def get_next_trade(entry, percent_change, power=0, kind="long"):
+    if kind == "long":
+        stop = entry * (1 + percent_change) ** power
+    else:
+        stop = entry * (1 + percent_change) ** -power
+    return stop
+
+
+def get_avg_entry(entry, quantity, minimum_pnl, kind="long"):
+    difference = minimum_pnl / quantity
+    if kind == "long":
+        return entry - difference
+    return entry + difference
+
+
+def simple_trade_generation(
+    payload: "TradePayload", price_place="%.1f", decimal_places="%.3f"
+):
+    percent_change = payload["stop_percent"] / 100
+    fee = payload["fee_percent"] / 100
+    entry = payload["entry"]
+    kind = payload["kind"]
+    risk = payload["risk"]
+    stop = to_f(
+        get_next_trade(entry, percent_change, power=-1, kind=kind), places=price_place
+    )
+    quantity = to_f(risk / abs(entry - stop), decimal_places)
+    minimum_pnl = to_f(entry * quantity * fee * 3, decimal_places)
+    opposite_kind = "long" if kind == "short" else "short"
+    opposite_avg_entry = to_f(
+        get_avg_entry(entry, quantity, minimum_pnl, kind=opposite_kind), price_place
+    )
+    half_quantity = to_f(quantity / 2, decimal_places)
+    remainder = quantity - (half_quantity * 2)
+    first_half = half_quantity
+    if remainder:
+        first_half += remainder
+    first_opposite_entry = to_f(
+        get_next_trade(entry, percent_change, power=0.5, kind=opposite_kind),
+        places=price_place,
+    )
+    second_opposite_entry = to_f(
+        ((opposite_avg_entry * quantity) - (first_opposite_entry * first_half))
+        / half_quantity,
+        price_place,
+    )
+    opposite_pnl = to_f(
+        determine_pnl(first_opposite_entry, stop, first_half, kind=opposite_kind),
+        decimal_places,
+    )
+    loss = to_f(abs(risk - opposite_pnl), decimal_places) + minimum_pnl
+    opposite_loss = to_f(
+        determine_pnl(
+            opposite_avg_entry, second_opposite_entry, quantity, kind=opposite_kind
+        ),
+        decimal_places,
+    )
+    max_pnl = to_f(
+        determine_pnl(entry, second_opposite_entry, quantity, kind=kind), decimal_places
+    )
+
+    def get_side(_kind):
+        return "buy" if _kind == "long" else "sell"
+
+    return {
+        "entry": [
+            {
+                "price": first_opposite_entry,
+                'entry': first_opposite_entry,
+                "quantity": first_half,
+                "side": get_side(opposite_kind),
+                "kind": opposite_kind,
+            },
+            {
+                'entry': second_opposite_entry,
+                "price": second_opposite_entry,
+                "quantity": half_quantity,
+                "side": get_side(opposite_kind),
+                "kind": opposite_kind,
+            },
+            {
+                'entry': entry,
+                "price": entry,
+                "quantity": quantity,
+                "side": get_side(kind),
+                "kind": kind,
+            },
+        ],
+        "stop": [
+            {
+                "price": second_opposite_entry,
+                "quantity": quantity,
+                "side": "buy" if get_side(opposite_kind) == "sell" else "sell",
+                "stop": second_opposite_entry,
+                "kind": opposite_kind,
+                "is_market": True,
+            },
+            {
+                "price": stop,
+                "quantity": quantity,
+                "side": "buy" if get_side(kind) == "sell" else "sell",
+                "stop": stop,
+                "kind": kind,
+                "loss": loss,
+                "is_market": True,
+            },
+        ],
+        "take_profit": [
+            {
+                "take_profit": stop,
+                "min_pnl": opposite_pnl,
+                "side": "buy" if get_side(opposite_kind) == "sell" else "sell",
+                "sell_price": stop,
+                "quantity": first_half,
+                "kind": opposite_kind,
+            },
+            {
+                "take_profit": second_opposite_entry,
+                "min_pnl": minimum_pnl,
+                "max_pnl": max_pnl,
+                "side": "buy" if get_side(kind) == "sell" else "sell",
+                "sell_price": second_opposite_entry,
+                "quantity": quantity,
+                "kind": kind,
+            },
+        ],
+    }
+
+
+def reverse_simple_trader(
+    payload: "TradePayload", price_place="%.1f", decimal_places="%.3f"
+):
+    percent_change = payload["stop_percent"] / 100
+    entry = payload["entry"]
+    kind = payload["kind"]
+
+    actual_entry = to_f(
+        get_next_trade(entry, percent_change, power=0.5, kind=kind), places=price_place
+    )
+    result = simple_trade_generation(
+        {**payload, "entry": actual_entry},
+        price_place=price_place,
+        decimal_places=decimal_places,
+    )
+    return result
+
+
+def create_trader(
+    payload: TradePayload,
+    price_place="%.1f",
+    decimal_places="%.3f",
+    trade_type: Literal[
+        "long",
+        "short",
+        "bullish_short",
+        "bearish_long",
+    ] = "long",
+):
+    if trade_type in ["long", "short"]:
+        payload["kind"] = trade_type
+        return simple_trade_generation(
+            payload,
+            price_place=price_place,
+            decimal_places=decimal_places,
+        )
+    else:
+        options = {
+            "bullish_short": "long",
+            "bearish_long": "short",
+        }
+        payload["kind"] = options[trade_type]
+        return reverse_simple_trader(
+            payload,
+            price_place=price_place,
+            decimal_places=decimal_places,
+        )

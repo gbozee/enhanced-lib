@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List, Dict, Any, TypedDict, Literal
 import requests
 import asyncio
+from enhanced_lib.calculations.utils import create_trader
 
 ROOT = "your_root_value_here"  # Replace with the actual value
 
@@ -1192,3 +1193,118 @@ class TradeClient:
             },
         )
         return result["data"]
+
+    async def create_task(self, name, params):
+        func = getattr(self, name)
+        return func(params)
+
+    def run_async(self, coroutine):
+        try:
+            return asyncio.run(coroutine)
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            return loop.run_until_complete(coroutine)
+
+    def place_create_trader(self, params):
+        owner = params.pop("owner")
+        symbol = params.pop("symbol")
+        trade_type = params.pop("trade_type")
+        payload = params.pop("payload")
+        price_places = params.pop("price_places", "%0.1f")
+        decimal_places = params.pop("decimal_places", "%0.3f")
+        action = params.pop("action")
+        tp_kind = params.pop("tp_kind", None)
+
+        orders_to_place = create_trader(
+            payload,
+            price_place=price_places,
+            decimal_places=decimal_places,
+            trade_type=trade_type,
+        )
+        long_signal_orders = [
+            x for x in orders_to_place["entry"] if x["kind"] == "long"
+        ]
+        short_signal_orders = [
+            x for x in orders_to_place["entry"] if x["kind"] == "short"
+        ]
+        long_stop_orders = [x for x in orders_to_place["stop"] if x["kind"] == "long"]
+        short_stop_orders = [x for x in orders_to_place["stop"] if x["kind"] == "short"]
+        long_tp_orders = [
+            x for x in orders_to_place["take_profit"] if x["kind"] == "long"
+        ]
+        short_tp_orders = [
+            x for x in orders_to_place["take_profit"] if x["kind"] == "short"
+        ]
+        if action == "get":
+            return orders_to_place
+        if action == "entry":
+            # cancel all existing orders
+            task1 = self.create_task(
+                "place_signal_orders",
+                {
+                    "cancel": True,
+                    "symbol": symbol,
+                    "orders": long_signal_orders,
+                    "sub_accounts": owner,
+                    "kind": "long",
+                },
+            )
+            task2 = self.create_task(
+                "place_signal_orders",
+                {
+                    "cancel": True,
+                    "symbol": symbol,
+                    "orders": short_signal_orders,
+                    "sub_accounts": owner,
+                    "kind": "short",
+                },
+            )
+
+            async def run(tasks):
+                return await asyncio.gather(*tasks)
+
+            self.run_async(run([task1, task2]))
+            # place new orders
+            task1 = self.create_task(
+                "place_signal_orders",
+                {
+                    "symbol": symbol,
+                    "orders": long_signal_orders,
+                    "sub_accounts": owner,
+                    "kind": "long",
+                },
+            )
+            task2 = self.create_task(
+                "place_signal_orders",
+                {
+                    "symbol": symbol,
+                    "orders": short_signal_orders,
+                    "sub_accounts": owner,
+                    "kind": "short",
+                },
+            )
+            first, second = self.run_async(run([task1, task2]))
+            return {"entry": {"first": first, "second": second}}
+        if action == "stop":
+            first = self.place_raw_orders(
+                {
+                    "symbol": symbol,
+                    "owner": owner,
+                    "orders": long_stop_orders + short_stop_orders,
+                }
+            )
+            return {"stop": first}
+        if action == "tp" and tp_kind:
+            orders = long_tp_orders if tp_kind == "long" else short_tp_orders
+            first = self.update_close_prices(
+                {
+                    "symbol": symbol,
+                    "sub_account": [owner],
+                    "orders": orders,
+                    "owner": owner,
+                    "kind": tp_kind,
+                    "reduce": False,
+                }
+            )
+            return {"tp": first}
