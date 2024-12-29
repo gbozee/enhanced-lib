@@ -692,3 +692,14 @@ def create_trader(
             price_place=price_place,
             decimal_places=decimal_places,
         )
+
+def determine_stop_percent(support:float, resistance:float):
+    #     'resistance': {'99950.00': 2,
+    #   '95300.00': 3,
+    #   '95195.00': 2,
+    #   '94537.70': 2,
+    #   '93892.50': 2,
+    #   '93728.80': 2},
+    #  'support': {'93000.00': 8},
+    #  'minimum_weekly': 92272.6}
+    pass
