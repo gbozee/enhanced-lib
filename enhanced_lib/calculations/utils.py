@@ -693,6 +693,34 @@ def create_trader(
             decimal_places=decimal_places,
         )
 
+def determine_trader_risk(payload: TradePayload, decrement: float = 0.5) -> float:
+    """
+    Calculate the risk value that results in a loss lower than or equal to the risk in the payload.
+
+    Args:
+        payload (TradePayload): The trade payload containing the initial risk.
+        decrement (float): The decrement value to adjust the risk, default is 0.5.
+
+    Returns:
+        float: The adjusted risk value.
+    """
+    current_risk = payload["risk"]
+    while True:
+        # Simulate a trade with the current risk
+        trade_result = simple_trade_generation(
+            {**payload, "risk": current_risk}
+        )
+        # Calculate the loss from the trade result
+        loss = sum(stop.get("loss", 0) for stop in trade_result["stop"])
+        # Check if the loss is within the acceptable range
+        if loss <= payload["risk"]:
+            return current_risk
+        # Decrement the risk
+        current_risk -= decrement
+        if current_risk <= 0:
+            break
+    return 0
+
 def determine_stop_percent(support:float, resistance:float):
     #     'resistance': {'99950.00': 2,
     #   '95300.00': 3,
