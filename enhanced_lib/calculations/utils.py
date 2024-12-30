@@ -514,6 +514,7 @@ class TradePayload(TypedDict):
     stop_percent: float
     fee_percent: float
     sentiment: str
+    early: bool
 
 
 def get_next_trade(entry, percent_change, power=0, kind="long"):
@@ -549,7 +550,7 @@ def simple_trade_generation(
         get_avg_entry(entry, quantity, minimum_pnl, kind=opposite_kind), price_place
     )
     half_quantity = to_f(quantity / 2, decimal_places)
-    remainder = quantity - (half_quantity * 2)
+    remainder = to_f(quantity - (half_quantity * 2),decimal_places)
     first_half = half_quantity
     if remainder:
         first_half += remainder
@@ -584,24 +585,25 @@ def simple_trade_generation(
         "entry": [
             {
                 "price": first_opposite_entry,
-                'entry': first_opposite_entry,
+                "entry": first_opposite_entry,
                 "quantity": first_half,
                 "side": get_side(opposite_kind),
                 "kind": opposite_kind,
             },
             {
-                'entry': second_opposite_entry,
+                "entry": second_opposite_entry,
                 "price": second_opposite_entry,
                 "quantity": half_quantity,
                 "side": get_side(opposite_kind),
                 "kind": opposite_kind,
             },
             {
-                'entry': entry,
+                "entry": entry,
                 "price": entry,
                 "quantity": quantity,
                 "side": get_side(kind),
                 "kind": kind,
+                'early': payload.get('early'),
             },
         ],
         "stop": [
@@ -619,7 +621,7 @@ def simple_trade_generation(
                 "side": "buy" if get_side(kind) == "sell" else "sell",
                 "stop": stop,
                 "kind": kind,
-                "loss": loss,
+                "loss": to_f(loss, decimal_places),
                 "is_market": True,
             },
         ],
@@ -693,6 +695,7 @@ def create_trader(
             decimal_places=decimal_places,
         )
 
+
 def determine_trader_risk(payload: TradePayload, decrement: float = 0.5) -> float:
     """
     Calculate the risk value that results in a loss lower than or equal to the risk in the payload.
@@ -707,9 +710,7 @@ def determine_trader_risk(payload: TradePayload, decrement: float = 0.5) -> floa
     current_risk = payload["risk"]
     while True:
         # Simulate a trade with the current risk
-        trade_result = simple_trade_generation(
-            {**payload, "risk": current_risk}
-        )
+        trade_result = simple_trade_generation({**payload, "risk": current_risk})
         # Calculate the loss from the trade result
         loss = sum(stop.get("loss", 0) for stop in trade_result["stop"])
         # Check if the loss is within the acceptable range
@@ -721,7 +722,8 @@ def determine_trader_risk(payload: TradePayload, decrement: float = 0.5) -> floa
             break
     return 0
 
-def determine_stop_percent(support:float, resistance:float):
+
+def determine_stop_percent(support: float, resistance: float):
     #     'resistance': {'99950.00': 2,
     #   '95300.00': 3,
     #   '95195.00': 2,
@@ -731,3 +733,66 @@ def determine_stop_percent(support:float, resistance:float):
     #  'support': {'93000.00': 8},
     #  'minimum_weekly': 92272.6}
     pass
+
+
+class CompoundTradeParam(TypedDict):
+    resistances: list
+    supports: list
+    support: float
+    risk: float
+    fee_percent: float
+
+
+def build_compound_trades(params: CompoundTradeParam):
+    resistances = params["resistances"]
+    resistance = max(params["resistances"])
+    support = params["support"]
+    risk = params["risk"]
+    if len(resistances) == 2:
+        resistances = []
+    _resistances = sorted([x for x in resistances if x != resistance])
+    _supports = sorted([x for x in params["supports"]])
+
+    def get_lower_resistance(i):
+        # if i >= len(_resistances):
+        #     return None
+        # if i == 0:
+        #     return _supports[-1]
+        return _resistances[i + 1]
+
+    def get_lower_support(i):
+        if i == 0:
+            return support 
+
+        if len(_supports) > 1:
+            return _supports[i - 1]
+        return support
+
+    actual_supports = []
+    # only consider long trades when there are multiple supports
+    if len(_supports) > 1:
+        actual_supports = _supports
+    combined = [
+        {
+            "entry": x,
+            "stop_percent": to_f(((get_lower_resistance(i) / x) - 1) * 100, "%.3f"),
+            "kind": "short",
+        }
+        for i, x in enumerate(_resistances)
+        if i < len(_resistances) - 1
+    ] + [
+        {
+            "entry": x,
+            "stop_percent": to_f(((x / get_lower_support(i)) - 1) * 100, "%.3f"),
+            "kind": "long",
+        }
+        for i, x in enumerate(actual_supports)
+    ]
+    min_risk = to_f(risk / len(combined), "%.2f")
+    results = [
+        {**x, "risk": min_risk, "fee_percent": params["fee_percent"]} for x in combined
+    ]
+    # breakpoint()
+    # return sorted(results, key=lambda x: x["entry"])
+    optimized_results = [{**x, "risk": determine_trader_risk(x)} for x in results]
+    return sorted(optimized_results, key=lambda x: x["entry"])

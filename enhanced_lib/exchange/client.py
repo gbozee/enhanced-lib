@@ -1051,6 +1051,22 @@ class TradeClient:
         )
         return result["data"]
 
+    def get_analyze_candlesticks(self, params):
+        result = self.api_call(
+            f'api/{params["owner"]}/remote-actions',
+            "POST",
+            {
+                "action": "base_model",
+                "symbol": params["symbol"],
+                "name": "base_model",
+                "params": {
+                    "args": ["analyze_candlesticks"],
+                    "kwargs": {"symbol": params["symbol"]},
+                },
+            },
+        )
+        return result['data']
+
     def get_open_orders(self, params):
         result = self.api_call(
             f"api/{params['owner']}/remote-actions",
