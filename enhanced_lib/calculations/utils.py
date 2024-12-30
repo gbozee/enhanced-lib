@@ -794,5 +794,5 @@ def build_compound_trades(params: CompoundTradeParam):
     ]
     # breakpoint()
     # return sorted(results, key=lambda x: x["entry"])
-    optimized_results = [{**x, "risk": determine_trader_risk(x)} for x in results]
+    optimized_results = [{**x, "risk": determine_trader_risk(x)} for x in results if x['stop_percent'] > 0]
     return sorted(optimized_results, key=lambda x: x["entry"])
